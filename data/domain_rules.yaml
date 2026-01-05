@@ -1,0 +1,18 @@
+rules:
+  default:
+    adapter: "generic"
+    extraction: "trafilatura"
+    max_snippets: 12
+    max_chars_per_snippet: 300
+    timeout: 15
+
+  github.com:
+    adapter: "github"
+    fetch_readme: true
+    fetch_releases: true
+    max_snippets: 5
+
+  arxiv.org:
+    adapter: "arxiv"
+    fetch_abstract: true
+    fetch_pdf_text: false # simplistic POC

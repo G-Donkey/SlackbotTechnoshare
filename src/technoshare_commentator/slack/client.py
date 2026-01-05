@@ -1,0 +1,39 @@
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from ..config import get_settings
+from ..log import get_logger
+
+logger = get_logger("slack_client")
+settings = get_settings()
+
+class SlackClientWrapper:
+    def __init__(self):
+        self.client = WebClient(token=settings.SLACK_BOT_TOKEN)
+
+    @retry(
+        retry=retry_if_exception_type(SlackApiError),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10)
+    )
+    def post_reply(self, channel_id: str, thread_ts: str, text: str):
+        """
+        Posts a threaded reply. 
+        Note: If thread_ts is None, it posts a top-level message (usually we want thread).
+        """
+        try:
+            self.client.chat_postMessage(
+                channel=channel_id,
+                thread_ts=thread_ts,
+                text=text,
+                unfurl_links=False, # cleaner replies
+                unfurl_media=False
+            )
+        except SlackApiError as e:
+            if e.response["error"] == "ratelimited":
+                logger.warning("Slack rate limited, retrying...")
+                raise e
+            logger.error(f"Slack API error: {e.response['error']}")
+            raise
+
+slack_client = SlackClientWrapper()
