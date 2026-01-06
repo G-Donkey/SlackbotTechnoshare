@@ -37,3 +37,4 @@ def test_real_openai_search_meta_blog():
     print(f"\nExtracted Facts: {result.key_facts}")
     print(f"Unknowns: {result.unknowns}")
     print(f"Coverage: {result.coverage_assessment}")
+
