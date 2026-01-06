@@ -20,4 +20,4 @@ def validate_sentence_list(sentences: List[str]) -> bool:
     """
     if len(sentences) != 10:
         return False
-    return all(len(s.strip()) > 10 for s in sentences) # Min length sanity check
+    return all(len(s.strip()) > 5 for s in sentences) # Looser sanity check

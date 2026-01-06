@@ -37,20 +37,21 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
     # 4. Handle Event Callback
     if payload.get("type") == "event_callback":
         event = parse_event(payload)
-        if event:
-            # Check for URLs immediately to decide if we even care
-            urls = extract_urls(event["text"])
-            if urls:
-                # Save to DB (Idempotency inside save_message)
-                # We do this synchronously or via background task? 
-                # DB write is fast (SQLite), so sync is fine.
-                newly_saved = Repo.save_message(event)
-                if newly_saved:
-                    logger.info(f"Queued job for message {event['ts']}")
-                else:
-                    logger.info(f"Duplicate or ignored message {event['ts']}")
-            else:
-                logger.info(f"No URLs in message {event['ts']}, ignoring.")
+        if not event:
+            return {"status": "ignored"}
+            
+        # Check for URLs immediately to decide if we even care
+        urls = extract_urls(event["text"])
+        if not urls:
+            logger.info(f"No URLs in message {event['ts']}, ignoring.")
+            return {"status": "ignored"}
+            
+        # Save to DB (Idempotency inside save_message)
+        newly_saved = Repo.save_message(event)
+        if newly_saved:
+            logger.info(f"Queued job for message {event['ts']}")
+        else:
+            logger.info(f"Duplicate message {event['ts']}")
         
         return {"status": "ok"}
 

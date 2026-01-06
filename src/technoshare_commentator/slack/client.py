@@ -36,4 +36,19 @@ class SlackClientWrapper:
             logger.error(f"Slack API error: {e.response['error']}")
             raise
 
+    def get_latest_messages(self, channel_id: str, limit: int = 5):
+        """
+        Reads the last few messages from a channel.
+        Requires 'conversations.history' scope.
+        """
+        try:
+            response = self.client.conversations_history(
+                channel=channel_id,
+                limit=limit
+            )
+            return response["messages"]
+        except SlackApiError as e:
+            logger.error(f"Error fetching history: {e.response['error']}")
+            raise
+
 slack_client = SlackClientWrapper()

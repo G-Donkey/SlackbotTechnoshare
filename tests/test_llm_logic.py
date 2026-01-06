@@ -88,7 +88,7 @@ def test_stage_b_composition(sample_facts):
         assert len(result.summary_10_sentences) == 10
         assert result.confidence == 0.9
 
-def test_llm_malformed_response_retry():
+def test_llm_malformed_response_retry(sample_evidence):
     """
     WHY: LLMs sometimes fail to return valid JSON matching the schema. Our client (beta.parse) usually handles this, 
          but if it raises an error, we want to know it propagates or is handled.
@@ -100,4 +100,4 @@ def test_llm_malformed_response_retry():
     
     with patch.object(llm_client, 'run_structured', side_effect=ValueError("Invalid JSON")):
         with pytest.raises(ValueError):
-            run_stage_a(sample_evidence())
+            run_stage_a(sample_evidence)

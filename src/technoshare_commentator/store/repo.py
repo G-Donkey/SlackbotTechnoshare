@@ -25,10 +25,18 @@ class Repo:
         """
         try:
             with get_db_connection() as conn:
-                # Insert message
+                # 1. Existence Check
+                cursor = conn.execute(
+                    "SELECT 1 FROM messages WHERE channel_id = ? AND message_ts = ?",
+                    (event["channel"], event["ts"])
+                )
+                if cursor.fetchone():
+                    return False
+
+                # 2. Insert Message
                 conn.execute(
                     """
-                    INSERT OR IGNORE INTO messages (channel_id, message_ts, thread_ts, user_id, text, status)
+                    INSERT INTO messages (channel_id, message_ts, thread_ts, user_id, text, status)
                     VALUES (?, ?, ?, ?, ?, 'received')
                     """,
                     (
@@ -39,33 +47,11 @@ class Repo:
                         event.get("text", "")
                     )
                 )
-                
-                # Check if it was inserted (hacky but effective: check rowid or just select)
-                # Ideally 'INSERT OR IGNORE' doesn't tell us easily distinct from 'already exists'.
-                # So we check existence explicitly in get_message_status usually, or trust the UNIQUE constraint.
-                
-                # We want to create a job ONLY if we just inserted it.
-                # Let's simplify: try insert message. If successful (rowcount > 0), insert job.
-                # But 'INSERT OR IGNORE' rowcount is unreliable in some drivers.
-                
-                # Better pattern:
-                cursor = conn.execute(
-                    "SELECT 1 FROM messages WHERE channel_id = ? AND message_ts = ?",
-                    (event["channel"], event["ts"])
-                )
-                exists = cursor.fetchone()
-                
-                if not exists:
-                     # This branch might be race-condition prone but fine for local POC.
-                     # Actually 'INSERT OR IGNORE' is atomic. 
-                     pass
 
-                # Let's just try to insert Job.
-                # If message exists, we might already have a job.
-                
-                cursor = conn.execute(
+                # 3. Create initial Job
+                conn.execute(
                     """
-                    INSERT OR IGNORE INTO jobs (channel_id, message_ts, status)
+                    INSERT INTO jobs (channel_id, message_ts, status)
                     VALUES (?, ?, 'pending')
                     """,
                     (event["channel"], event["ts"])

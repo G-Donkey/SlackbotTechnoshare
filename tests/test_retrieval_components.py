@@ -53,7 +53,7 @@ def test_extract_content_trafilatura_parsing():
     EXPECTED: The extractor returns ONLY the main text, ignoring the boilerplate.
     NOTE: Trafilatura logic is external, but we test our wrapper.
     """
-    html = \"\"\"
+    html = """
     <html>
         <body>
             <nav>Menu</nav>
@@ -64,7 +64,7 @@ def test_extract_content_trafilatura_parsing():
             <footer>Copyright</footer>
         </body>
     </html>
-    \"\"\"
+    """
     # We can mock trafilatura.extract OR trust the library if installed. 
     # Mocking is safer for unit tests to avoid dependency behavior changes, 
     # but testing real integration is better for a "scraper" test.

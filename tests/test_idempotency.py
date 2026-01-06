@@ -10,23 +10,13 @@ import os
 # Let's simple check logic with a clean temp db if possible, but that requires overriding Settings.
 
 @pytest.fixture
-def clean_db(tmp_path):
-    # Override global settings path?
-    # Pydantic BaseSettings can be patched
-    db_file = tmp_path / "test.db"
-    
-    import technoshare_commentator.store.db as db_module
-    original_path = db_module.settings.DB_PATH
-    db_module.settings.DB_PATH = str(db_file)
-    
-    init_db()
-    Repo.settings = db_module.settings # Ensure repo sees it if it imported it
-    
-    yield
-    
-    db_module.settings.DB_PATH = original_path
+def clean_db(test_db):
+    # This now just reuses the initialized test_db from conftest.py
+    # and ensures Repo sees the correct settings. 
+    # (Optional: we can just use test_db directly in the tests)
+    return test_db
 
-def test_save_message_idempotency(clean_db):
+def test_save_message_idempotency(test_db):
     """
     WHY: Slack can send duplicate events (at least once delivery). We must process each unique message only once.
     HOW: 
@@ -49,7 +39,7 @@ def test_save_message_idempotency(clean_db):
     # Second save: should be False (duplicate)
     assert Repo.save_message(event) == False
 
-def test_job_creation(clean_db):
+def test_job_creation(test_db):
     """
     WHY: Saving a message containing a link should queue a job for the worker.
     HOW:

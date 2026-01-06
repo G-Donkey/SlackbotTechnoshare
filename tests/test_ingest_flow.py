@@ -6,7 +6,7 @@ import time
 
 client = TestClient(app)
 
-def test_ingest_url_verification(test_db):
+def test_ingest_url_verification(test_db, mock_slack_verification):
     """
     WHY: Slack requires a handshake (url_verification) to confirm we own the endpoint before sending events.
     HOW: Post a JSON payload with `type="url_verification"` and a challenge string.
