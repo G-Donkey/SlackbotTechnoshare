@@ -40,3 +40,11 @@ dev = [
     "pytest-httpx>=0.36.0",
     "pytest-mock>=3.15.1",
 ]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+markers = [
+  "unit: fast deterministic tests",
+  "integration: tests that call external services (OpenAI, web, etc.)"
+]

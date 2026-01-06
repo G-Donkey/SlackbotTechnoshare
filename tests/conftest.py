@@ -3,11 +3,28 @@ import os
 import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from dotenv import load_dotenv
+
+@pytest.fixture(scope="session", autouse=True)
+def _load_env():
+    # Load .env once per session to avoid side-effects on import time
+    load_dotenv()
+
+def _truthy(v: str | None) -> bool:
+    return v is not None and v.strip().lower() not in ("", "0", "false", "no")
+
+@pytest.fixture(scope="session")
+def allow_integration() -> bool:
+    return _truthy(os.getenv("RUN_INTEGRATION_TESTS"))
+
+@pytest.fixture(scope="session")
+def openai_api_key() -> str | None:
+    key = os.getenv("OPENAI_API_KEY")
+    if not key or key == "sk-...":
+        return None
+    return key
 
 # Global setup to ensure we don't accidentally touch production DB
-# We patch the Settings object or the module that loads it.
-# Ideally, we set the env var before any imports, but that's hard with pytest collection.
-# Instead, we will patch the settings instance in config.py or the DB_PATH usage.
 
 @pytest.fixture(scope="function")
 def test_db(tmp_path):
