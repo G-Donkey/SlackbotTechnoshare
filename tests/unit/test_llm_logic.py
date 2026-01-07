@@ -38,7 +38,7 @@ def test_stage_a_fact_extraction(sample_evidence):
     )
     
     # We patch the instance method on the imported client object
-    with patch.object(llm_client, 'run_structured', return_value=expected_output) as mock_run:
+    with patch.object(llm_client, 'run_with_tools', return_value=expected_output) as mock_run:
         result = run_stage_a(sample_evidence)
         
         # Check call arguments
@@ -98,6 +98,6 @@ def test_llm_malformed_response_retry(sample_evidence):
     """
     from technoshare_commentator.llm.client import llm_client
     
-    with patch.object(llm_client, 'run_structured', side_effect=ValueError("Invalid JSON")):
+    with patch.object(llm_client, 'run_with_tools', side_effect=ValueError("Invalid JSON")):
         with pytest.raises(ValueError):
             run_stage_a(sample_evidence)

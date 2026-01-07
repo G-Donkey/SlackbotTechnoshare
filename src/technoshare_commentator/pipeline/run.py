@@ -31,9 +31,8 @@ class Pipeline:
             evidence = adapter.fetch_evidence(target_url)
             
             if evidence.coverage == "failed":
-                logger.warning("Fetch failed, skipping reply.")
-                Repo.mark_job_failed(job_id, f"Fetch failed: {evidence.errors}")
-                return
+                logger.warning("Fetch failed or rejected by adapter. Proceeding to Stage A to attempt Search Tool recovery.")
+                # We do NOT return here; we let Stage A try to fix it with the search tool.
                 
             # 3. Stage A (Facts)
             facts = run_stage_a(evidence)

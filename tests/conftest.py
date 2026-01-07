@@ -14,11 +14,12 @@ def _truthy(v: str | None) -> bool:
     return v is not None and v.strip().lower() not in ("", "0", "false", "no")
 
 @pytest.fixture(scope="session")
-def allow_integration() -> bool:
+def allow_integration(_load_env) -> bool:
+    # Depends on _load_env to ensure .env is loaded first
     return _truthy(os.getenv("RUN_INTEGRATION_TESTS"))
 
 @pytest.fixture(scope="session")
-def openai_api_key() -> str | None:
+def openai_api_key(_load_env) -> str | None:
     key = os.getenv("OPENAI_API_KEY")
     if not key or key == "sk-...":
         return None
