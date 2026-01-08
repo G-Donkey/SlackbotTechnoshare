@@ -1,7 +1,8 @@
 from typing import Dict, Any
 from .client import llm_client
 from .prompts import load_prompt
-from ..schemas.outputs import StageAResult, StageBResult
+from ..schemas.outputs import StageAResult
+from .stage_b_schema import StageBResult
 from ..config import get_settings
 
 settings = get_settings()

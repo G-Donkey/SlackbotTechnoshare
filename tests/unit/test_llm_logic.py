@@ -3,7 +3,8 @@ from unittest.mock import MagicMock, patch
 from technoshare_commentator.llm.stage_a import run_stage_a
 from technoshare_commentator.llm.stage_b import run_stage_b
 from technoshare_commentator.schemas.evidence import EvidencePack, EvidenceSource, EvidenceSnippet
-from technoshare_commentator.schemas.outputs import StageAResult, StageBResult, KeyFact
+from technoshare_commentator.schemas.outputs import StageAResult, KeyFact
+from technoshare_commentator.llm.stage_b_schema import StageBResult
 
 # Sample Data Fixtures
 @pytest.fixture
@@ -67,12 +68,14 @@ def test_stage_b_composition(sample_facts):
     project_context = {"themes": [{"name": "AI Ops"}]}
     
     expected_output = StageBResult(
-        summary_10_sentences=["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"],
-        project_relevance=["(Theme: AI Ops) Relevance point 1", "Point 2"],
-        risks_unknowns=["Risk 1"],
-        next_step="Do this.",
-        confidence=0.9,
-        coverage_label="full"
+        tdlr=["Python 4.0 is revolutionary.", "It features async everywhere.", "Breaking changes expected."],
+        summary=["S1.", "S2.", "S3.", "S4.", "S5.", "S6.", "S7.", "S8.", "S9.", "S10."],
+        projects=[
+            "**AI Ops** — Relevance point 1",
+            "**Cloud Native** — Point 2",
+            "**Data Engineering** — Point 3"
+        ],
+        similar_tech=["Rust async runtime - faster but more complex."],
     )
     
     with patch.object(llm_client, 'run_structured', return_value=expected_output) as mock_run:
@@ -85,8 +88,8 @@ def test_stage_b_composition(sample_facts):
         assert "# ProjectContext" in prompt
         assert "AI Ops" in prompt
         
-        assert len(result.summary_10_sentences) == 10
-        assert result.confidence == 0.9
+        assert len(result.summary) == 10
+        assert len(result.tdlr) == 3
 
 def test_llm_malformed_response_retry(sample_evidence):
     """

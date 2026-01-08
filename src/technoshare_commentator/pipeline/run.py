@@ -7,6 +7,7 @@ from ..llm.stage_b import run_stage_b
 from ..quality.gates import run_quality_gates
 from ..config import load_project_context
 from ..slack.client import slack_client
+from ..pipeline.post_stage_b import post_stage_b_result
 
 logger = logging.getLogger("pipeline")
 
@@ -50,11 +51,8 @@ class Pipeline:
                 Repo.mark_job_failed(job_id, error_msg)
                 return
 
-            # 6. Format Reply
-            final_text = self.format_slack_reply(reply_data, evidence)
-            
-            # 7. Post to Slack
-            slack_client.post_reply(channel_id, message_ts, final_text)
+            # 6-7. Validate, render and post via Block Kit (ensures mrkdwn rendering)
+            post_stage_b_result(channel=channel_id, thread_ts=message_ts, result=reply_data)
             
             # 8. Mark Done
             Repo.mark_job_done(job_id)
@@ -63,41 +61,5 @@ class Pipeline:
         except Exception as e:
             logger.exception("Pipeline error")
             Repo.mark_job_failed(job_id, str(e))
-
-    def format_slack_reply(self, data, evidence):
-        """Convert StageBResult to Slack markdown."""
-        lines = []
-        
-        # Summary
-        for i, s in enumerate(data.summary_10_sentences, 1):
-            lines.append(f"{i}. {s}")
-        lines.append("")
-        
-        # Relevance
-        lines.append("*How this helps our projects*")
-        for item in data.project_relevance:
-            lines.append(f"• {item}")
-        lines.append("")
-        
-        # Risks
-        lines.append("*Risks / Unknowns*")
-        for item in data.risks_unknowns:
-            lines.append(f"• {item}")
-        
-        if data.confidence < 0.55:
-            lines.append("• _Manual review recommended_")
-        lines.append("")
-        
-        # Next Step
-        lines.append(f"*Next step*: {data.next_step}")
-        lines.append("")
-        
-        # Sources
-        lines.append("*Sources*")
-        for source in evidence.sources:
-            title = source.title or source.url
-            lines.append(f"• <{source.url}|{title}>")
-            
-        return "\n".join(lines)
 
 pipeline = Pipeline()

@@ -18,7 +18,7 @@ class SlackClientWrapper:
     )
     def post_reply(self, channel_id: str, thread_ts: str, text: str):
         """
-        Posts a threaded reply. 
+        Posts a threaded reply with Slack mrkdwn formatting enabled.
         Note: If thread_ts is None, it posts a top-level message (usually we want thread).
         """
         try:
@@ -26,6 +26,7 @@ class SlackClientWrapper:
                 channel=channel_id,
                 thread_ts=thread_ts,
                 text=text,
+                mrkdwn=True,  # Enable Slack mrkdwn formatting
                 unfurl_links=False, # cleaner replies
                 unfurl_media=False
             )
@@ -49,6 +50,20 @@ class SlackClientWrapper:
             return response["messages"]
         except SlackApiError as e:
             logger.error(f"Error fetching history: {e.response['error']}")
+            raise
+
+    def post_payload(self, payload: dict):
+        """
+        Post a prepared payload (dict) directly to Slack using chat_postMessage.
+        This is useful when callers want to use Block Kit blocks.
+        """
+        try:
+            self.client.chat_postMessage(**payload)
+        except SlackApiError as e:
+            if e.response["error"] == "ratelimited":
+                logger.warning("Slack rate limited, retrying...")
+                raise e
+            logger.error(f"Slack API error: {e.response['error']}")
             raise
 
 slack_client = SlackClientWrapper()

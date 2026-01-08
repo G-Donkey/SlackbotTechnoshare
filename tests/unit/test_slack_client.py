@@ -22,6 +22,7 @@ def test_post_reply_success():
             channel="C1",
             thread_ts="123.456",
             text="Hello World",
+            mrkdwn=True,
             unfurl_links=False,
             unfurl_media=False
         )
