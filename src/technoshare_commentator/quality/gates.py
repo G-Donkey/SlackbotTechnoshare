@@ -14,9 +14,9 @@ def run_quality_gates(result: StageBResult) -> List[str]:
     if not (10 <= len(result.summary) <= 15):
         failures.append(f"Summary must have 10-15 sentences, got {len(result.summary)}")
     
-    # 2. TDLR: exactly 3 sentences (enforced by Pydantic, but double-check)
-    if len(result.tdlr) != 3:
-        failures.append(f"TDLR must have exactly 3 sentences, got {len(result.tdlr)}")
+    # 2. tldr: exactly 3 sentences (enforced by Pydantic, but double-check)
+    if len(result.tldr) != 3:
+        failures.append(f"tldr must have exactly 3 sentences, got {len(result.tldr)}")
 
     # 4. Theme mapping in projects
     # Check if any project bullets contain a theme name from project_context

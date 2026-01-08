@@ -51,11 +51,11 @@ def render_stage_b_to_slack(result: StageBResult) -> str:
             return "• *N.v.t.*"
         return "\n".join(f"• {line.strip()}" for line in lines if line.strip())
 
-    tdlr_block = f"*TDLR:* {join_sentences(result.tdlr)}"
+    tldr_block = f"*tldr:* {join_sentences(result.tldr)}"
     summary_block = f"*Summary:* {join_sentences(result.summary)}"
-    projects_block = f"*Projects:*\n{bullets(result.projects)}"
-    similar_block = f"*Similar tech:*\n{bullets(result.similar_tech)}"
-    markdown_text = "\n\n".join([tdlr_block, summary_block, projects_block, similar_block])
+    projects_block = f"*For which projects can this be relevant?:*\n{bullets(result.projects)}"
+    similar_block = f"*Is there similar technology?:*\n{bullets(result.similar_tech)}"
+    markdown_text = "\n\n".join([tldr_block, summary_block, projects_block, similar_block])
     
     # Convert Markdown **bold** to Slack *bold*
     return md_to_slack_mrkdwn(markdown_text)

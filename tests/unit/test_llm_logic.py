@@ -68,7 +68,7 @@ def test_stage_b_composition(sample_facts):
     project_context = {"themes": [{"name": "AI Ops"}]}
     
     expected_output = StageBResult(
-        tdlr=["Python 4.0 is revolutionary.", "It features async everywhere.", "Breaking changes expected."],
+        tldr=["Python 4.0 is revolutionary.", "It features async everywhere.", "Breaking changes expected."],
         summary=["S1.", "S2.", "S3.", "S4.", "S5.", "S6.", "S7.", "S8.", "S9.", "S10."],
         projects=[
             "**AI Ops** — Relevance point 1",
@@ -89,7 +89,7 @@ def test_stage_b_composition(sample_facts):
         assert "AI Ops" in prompt
         
         assert len(result.summary) == 10
-        assert len(result.tdlr) == 3
+        assert len(result.tldr) == 3
 
 def test_llm_malformed_response_retry(sample_evidence):
     """

@@ -36,13 +36,13 @@ def _numbered_list(lines: List[str]) -> str:
 def render_stage_b_to_markdown(result: StageBResult) -> str:
     """
     Clean, scannable Markdown layout:
-      - TDLR: bullets
+      - tldr: bullets
       - Summary: numbered lines
       - Projects: bullets
       - Similar tech: bullets or N/A
     Two blank lines between main sections (=> 3 newlines).
     """
-    tdlr_block = "**TDLR**\n" + _bullet_list(result.tdlr)
+    tldr_block = "**tldr**\n" + _bullet_list(result.tldr)
     summary_block = "**Summary**\n" + _numbered_list(result.summary)
     projects_block = "**Projects**\n" + _bullet_list(result.projects)
 
@@ -52,7 +52,7 @@ def render_stage_b_to_markdown(result: StageBResult) -> str:
         similar_block = "**Similar tech**\n• **N/A**"
 
     section_sep = "\n\n\n"  # two blank lines between sections
-    return section_sep.join([tdlr_block, summary_block, projects_block, similar_block])
+    return section_sep.join([tldr_block, summary_block, projects_block, similar_block])
 
 
 def render_stage_b_to_slack(result: StageBResult) -> str:

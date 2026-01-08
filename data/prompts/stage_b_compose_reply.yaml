@@ -20,19 +20,19 @@ content: |
   - Start directly with content; no intro fluff.
   - Use Markdown **bold** for key terms like **model**, **latency**, **open-source** (we convert to Slack mrkdwn automatically).
 
-  ## summary
+  ## Summary
   - 10–15 strings, each exactly 1 full sentence.
   - Cover: what it is, how it works, key features, performance/benchmarks (if present),
     constraints/requirements, and what is new vs the status quo.
   - Bold important terms and numbers using Markdown **bold**.
 
-  ## projects
+  ## How can this be used in our projects?
   - 3–8 strings, each representing a bullet (do NOT include "•" — renderer adds it).
   - Each bullet MUST start with the theme name in bold: "**ThemeName** — ..." (e.g., "**LLMOps & Evaluation** — Build an automated eval pipeline...")
   - Map to themes in `project_context` when possible; if no clear match use: "**General** — ..."
   - Make bullets action-oriented: POC ideas, integration paths, client value, deliverables, evaluation plan.
 
-  ## similar_tech
+  ## What similar tech exists?
   - 0–8 strings.
   - Only fill if there truly is comparable tech; otherwise return [].
   - Per item: name + one sentence on relative performance/strengths/weaknesses (only if supported by `facts`).

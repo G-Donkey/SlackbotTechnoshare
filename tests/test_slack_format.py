@@ -4,7 +4,7 @@ from technoshare_commentator.rendering.slack_format import render_stage_b_to_mar
 
 def test_two_blank_lines_between_sections():
     r = StageBResult(
-        tdlr=["A sentence.", "Another sentence.", "Third sentence."],
+        tldr=["A sentence.", "Another sentence.", "Third sentence."],
         summary=[f"Sentence {i}." for i in range(10)],
         projects=["**General** — Do something." for _ in range(3)],
         similar_tech=[],
@@ -19,7 +19,7 @@ def test_two_blank_lines_between_sections():
 
 def test_bold_conversion_markdown_to_slack():
     r = StageBResult(
-        tdlr=["Use **bold** here.", "Another **term** here.", "Final **bit** here."],
+        tldr=["Use **bold** here.", "Another **term** here.", "Final **bit** here."],
         summary=[f"Has **x{i}**." for i in range(10)],
         projects=["**LLMOps** — Test **bold** conversion." for _ in range(3)],
         similar_tech=["**TechX** — Fast."],
