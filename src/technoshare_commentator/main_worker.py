@@ -1,3 +1,12 @@
+"""Background worker that processes jobs from the database queue.
+
+Polls for pending jobs and executes the LLM pipeline for each.
+Runs until interrupted (SIGINT).
+
+Usage:
+    python -m src.technoshare_commentator.main_worker
+"""
+
 import time
 import signal
 import sys

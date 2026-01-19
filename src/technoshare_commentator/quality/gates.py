@@ -1,3 +1,9 @@
+"""Quality gate validation for LLM outputs.
+
+Ensures Stage B results meet formatting and content requirements
+before posting to Slack.
+"""
+
 from typing import List, Dict, Any
 from ..llm.stage_b_schema import StageBResult
 from ..config import get_settings, load_project_context

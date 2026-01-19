@@ -1,3 +1,8 @@
+"""URL extraction and normalization utilities.
+
+Extracts URLs from Slack message text and performs basic cleanup.
+"""
+
 import re
 from typing import List
 from ..config import get_settings

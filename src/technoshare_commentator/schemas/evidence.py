@@ -1,3 +1,8 @@
+"""Pydantic schemas for evidence and retrieval data.
+
+Defines EvidencePack, EvidenceSource, and EvidenceSnippet models.
+"""
+
 from pydantic import BaseModel
 from typing import List, Optional
 

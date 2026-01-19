@@ -26,10 +26,10 @@ def sample_facts():
 def test_stage_a_fact_extraction(sample_evidence):
     """
     WHY: Verify that Stage A correctly sends evidence to the LLM and parses the structural result.
-    HOW: Mock `llm_client.run_structured` to return a valid `StageAResult` object.
+    HOW: Mock `llm_client.run_with_tools` to return a valid response with `StageAResult`.
     EXPECTED: The function should return the mock result without error.
     """
-    from technoshare_commentator.llm.client import llm_client
+    from technoshare_commentator.llm.client import llm_client, RunResponse, RunMeta
     
     # Create the expected output object
     expected_output = StageAResult(
@@ -38,8 +38,14 @@ def test_stage_a_fact_extraction(sample_evidence):
         coverage_assessment="full"
     )
     
+    # Mock returns RunResponse with parsed and meta
+    mock_response = RunResponse(
+        parsed=expected_output,
+        meta=RunMeta(tool_calls=[], sources=[], model="gpt-4o")
+    )
+    
     # We patch the instance method on the imported client object
-    with patch.object(llm_client, 'run_with_tools', return_value=expected_output) as mock_run:
+    with patch.object(llm_client, 'run_with_tools', return_value=mock_response) as mock_run:
         result = run_stage_a(sample_evidence)
         
         # Check call arguments

@@ -1,3 +1,9 @@
+"""Slack API client wrapper with retry logic.
+
+Provides SlackClientWrapper for posting messages and fetching channel history.
+Includes exponential backoff for rate limiting.
+"""
+
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type

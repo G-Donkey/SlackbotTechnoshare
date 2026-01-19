@@ -1,153 +1,148 @@
-# TechnoShare Commentator (POC)
+# TechnoShare Commentator
 
-**A proactive AI agent for automated technical knowledge management.**
-
----
-
-## 📖 Business Overview
-
-### 🎯 Mission
-In a fast-paced AI consulting environment, staying updated is critical. Team members constantly share valuable articles, papers, and tools in Slack channels like `#technoshare`. However, due to high volume and busy schedules, **90% of these links are lost in the noise** or never fully leveraged for client projects.
-
-**TechnoShare Commentator** solves this by transforming passive "link dumps" into active, actionable intelligence. It ensures every shared resource is analyzed, summarized, and mapped to specific business opportunities.
-
-### 💎 Value Proposition
-1.  **Reduce Information Overload**: Instead of reading 10-page papers, consultants get a 10-sentence executive summary instantly.
-2.  **Contextual Relevance**: The bot doesn't just summarize; it explicitly answers: *"How can we use this for our clients?"* and *"What are the risks?"*
-3.  **Active Knowledge Base**: By processing links immediately, we build a searchable repository of vetted tools and insights, preventing knowledge silos.
-4.  **Quality Control**: The prompt-chaining architecture ensures high-fidelity extractions, filtering out clickbait and focusing on technical substance.
-
-### ⚙️ How It Works
-1.  **Listen**: The bot monitors specific Slack channels for links.
-2.  **Read & Search**: It autonomously visits the URL. If the content is complex, it uses an **LLM-powered Search Tool** to navigate the page and extract key facts.
-3.  **Analyze**: It runs a multi-stage reasoning process:
-    *   *Stage A*: Extract objective facts and technical specs.
-    *   *Stage B*: Synthesize insights, assess project relevance, and identify risks.
-4.  **Engage**: It posts a threaded reply in Slack with a structured summary, enabling immediate team discussion.
+**AI-powered Slack bot for automated technical knowledge management.**
 
 ---
 
-## 🏗 Technical Architecture
+## 📖 Overview
 
-This repository is built with **production-grade engineering practices**, moving beyond a simple script to a robust, scalable system.
+TechnoShare Commentator monitors Slack channels for shared links, analyzes them using a two-stage LLM pipeline, and posts structured summaries as threaded replies.
 
-### Core Principles
--   **Hexagonal Architecture**: Business logic is isolated from external systems (Slack, OpenAI). This allows us to swap specific components (e.g., changing the LLM provider) without rewriting the core bot.
--   **Agentic Capabilities**: The system isn't just a text-in/text-out pipeline. It has **Tools** (like Web Search) that it can decide to use dynamically when it encounters missing information.
--   **Observability**: Every interaction is logged with structured metadata (tokens used, tools called, sources cited), essential for debugging and cost management.
-
-### The Codebase
--   **`src/technoshare_commentator`**: The application core.
-    -   `pipeline/`: Orchestrates the Agent workflow (Ingest -> Analyze -> Reply).
-    -   `llm/`: Handles AI logic, including **Prompt Chaining** and **Structured Outputs** (Pydantic objects) for reliability.
-    -   `retrieval/`: Adapters for fetching content from generic web pages, GitHub, or ArXiv.
--   **`tests/`**: A comprehensive test suite featuring:
-    -   **Unit Tests**: Fast, mocked tests for logic verification.
-    -   **Integration Tests**: Real-world scenarios (e.g., "Actually read a Meta AI blog post") gated by environment flags to control costs.
-    -   **Fixtures**: Modular setup for clean, readable test code.
+### Key Features
+- **🔌 Socket Mode**: WebSocket-based connection (no public URL required)
+- **🧠 Two-Stage LLM Pipeline**: Fact extraction → Reply composition
+- **📊 MLflow Integration**: Optional tracking and tracing for observability
+- **⚡ Async Job Queue**: SQLite-backed queue with idempotent processing
 
 ---
 
-## Setup
+## 🏗 Architecture
 
-1. **Install uv**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-2. **Install dependencies**:
-   ```bash
-   uv sync
-   ```
-3. **Configure Environment**:
-   - Copy `.env.example` to `.env`
-   - Fill in Slack tokens and OpenAI key.
-   - Set `TECHNOSHARE_CHANNEL_ID`.
-   - Optionally configure MLflow (see [MLflow Setup](#mlflow-llmops-optional))
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    TechnoShare Commentator                   │
+├─────────────────────────────────────────────────────────────┤
+│  main_socket.py          │  main_worker.py                  │
+│  (Socket Mode Listener)  │  (Job Processor)                 │
+│          │               │          │                       │
+│          ▼               │          ▼                       │
+│  ┌───────────────┐       │  ┌───────────────────────────┐  │
+│  │ Slack Events  │       │  │    7-Stage Pipeline       │  │
+│  │ (via WebSocket)│       │  │  1. URL extraction       │  │
+│  └───────┬───────┘       │  │  2. Content retrieval    │  │
+│          │               │  │  3. Stage A (facts)      │  │
+│          ▼               │  │  4. Stage B (composition)│  │
+│  ┌───────────────┐       │  │  5. Quality gates        │  │
+│  │ SQLite Queue  │◄──────┼──│  6. Slack posting        │  │
+│  │ (jobs table)  │       │  │  7. Job completion       │  │
+│  └───────────────┘       │  └───────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## Running
-
-1. **MLflow Server** (optional, for tracking/observability):
-   ```bash
-   ./scripts/start_mlflow.sh
-   ```
-   Access UI at http://127.0.0.1:5000
-
-2. **Ingest Server** (receives Slack events):
-   ```bash
-   uv run uvicorn technoshare_commentator.main_ingest:app --reload --port 3000
-   ```
-   *Note: Ensure your tunnel (ngrok) points to localhost:3000*
-
-3. **Worker** (processes jobs):
-   ```bash
-   uv run python -m technoshare_commentator.main_worker
-   ```
-
-## Development
-
-- **Run tests**:
-  ```bash
-  uv run pytest
-  ```
-- **Replay event**:
-  ```bash
-  uv run python scripts/replay_event.py
-  ```
-- **Run evaluation suite**:
-  ```bash
-  python scripts/run_eval.py
-  ```
-- **Sync prompts to MLflow**:
-  ```bash
-  python scripts/sync_prompts.py
-  ```
+### Project Structure
+```
+src/technoshare_commentator/
+├── main_socket.py      # Socket Mode listener (slack-bolt)
+├── main_worker.py      # Job processing worker
+├── config.py           # Pydantic settings
+├── llm/               # LLM logic (Stage A, Stage B, client)
+├── pipeline/          # Pipeline orchestration
+├── retrieval/         # URL fetching and content extraction
+├── quality/           # Output validation gates
+├── rendering/         # Slack mrkdwn formatting
+├── schemas/           # Pydantic models
+├── slack/             # Slack client and posting
+├── store/             # SQLite database layer
+└── mlops/             # MLflow tracking/tracing (optional)
+```
 
 ---
 
-## 🔬 MLflow LLMOps (Optional)
+## 🚀 Quick Start
 
-This project includes comprehensive MLflow-based LLMOps for production-grade observability:
+### 1. Prerequisites
+- Python 3.11+
+- [uv](https://astral.sh/uv) package manager
+- Slack App with Socket Mode enabled
 
-### Features
-- **📊 Experiment Tracking**: Automatic logging of params, metrics, and artifacts for every job
-- **🔍 LLM Tracing**: Span-based observability for LLM calls, tool usage, and pipeline stages
-- **📝 Prompt Versioning**: Version control and aliasing for prompt templates
-- **✅ Evaluation Suite**: Automated quality checks with hard and soft scorers
-
-### Quick Start
-
+### 2. Install
 ```bash
-# 1. Start MLflow server
+uv sync
+```
+
+### 3. Configure Environment
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+Required environment variables:
+```env
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_APP_TOKEN=xapp-...
+OPENAI_API_KEY=sk-...
+TECHNOSHARE_CHANNEL_ID=C...
+```
+
+### 4. Verify Configuration
+```bash
+uv run python scripts/test_socket_config.py
+```
+
+### 5. Run
+```bash
+# Terminal 1: Socket Mode listener
+uv run python -m technoshare_commentator.main_socket
+
+# Terminal 2: Job worker
+uv run python -m technoshare_commentator.main_worker
+```
+
+---
+
+## 🔬 MLflow (Optional)
+
+Enable LLM observability with MLflow tracking and tracing.
+
+### Setup
+```bash
+# Start MLflow server
 ./scripts/start_mlflow.sh
 
-# 2. Add to .env
+# Add to .env
 MLFLOW_TRACKING_URI=http://127.0.0.1:5000
 MLFLOW_ENABLE_TRACKING=true
 MLFLOW_ENABLE_TRACING=true
-
-# 3. Run pipeline (auto-logs to MLflow)
-python -m technoshare_commentator.main_worker
-
-# 4. View UI
-open http://127.0.0.1:5000
 ```
-
-### Documentation
-- **📖 Full Guide**: [docs/MLFLOW_GUIDE.md](docs/MLFLOW_GUIDE.md)
-- **⚡ Quick Reference**: [docs/MLFLOW_QUICKSTART.md](docs/MLFLOW_QUICKSTART.md)
 
 ### What Gets Tracked
-Every pipeline run automatically logs:
-- Latency, token counts, tool usage
-- Evidence, facts, outputs as artifacts
+- Pipeline latency and token usage
+- Evidence, facts, and outputs as artifacts
 - Quality gate results
-- Source URLs and adapter coverage
 - Nested spans for debugging
 
-### Evaluation
-```bash
-# Add test cases to data/eval_dataset.json
-# Run evaluation suite
-python scripts/run_eval.py
+📖 See [docs/MLFLOW.md](docs/MLFLOW.md) for full documentation.
 
-# View results in MLflow UI (experiment: technoshare_eval)
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=technoshare_commentator
+
+# Run integration tests (requires API keys)
+INTEGRATION_TEST=1 uv run pytest tests/integration/
 ```
+
+---
+
+## 📚 Documentation
+
+- [Slack Integration](src/technoshare_commentator/slack/README.md) - Socket Mode architecture
+- [MLflow Guide](docs/MLFLOW.md) - LLMOps and observability
 
 ---

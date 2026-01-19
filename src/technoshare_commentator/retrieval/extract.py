@@ -1,3 +1,8 @@
+"""Content extraction from HTML using trafilatura.
+
+Extracts clean text and creates snippets for LLM consumption.
+"""
+
 import trafilatura
 from typing import List, Dict, Any
 from ..schemas.evidence import EvidenceSnippet

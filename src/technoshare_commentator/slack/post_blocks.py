@@ -1,3 +1,8 @@
+"""Slack message payload builders.
+
+Provides functions to build chat.postMessage payloads with mrkdwn formatting.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional

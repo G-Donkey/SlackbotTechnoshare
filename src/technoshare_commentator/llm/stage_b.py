@@ -1,3 +1,9 @@
+"""Stage B: Reply composition from extracted facts.
+
+Composes structured Slack reply with TL;DR, summary, and
+project recommendations based on Stage A facts.
+"""
+
 from typing import Dict, Any
 from .client import llm_client
 from .prompts import load_prompt

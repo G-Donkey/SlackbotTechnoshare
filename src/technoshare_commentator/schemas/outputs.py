@@ -1,3 +1,8 @@
+"""Pydantic schemas for pipeline stage outputs.
+
+Defines StageAResult (facts) and utility functions for output formatting.
+"""
+
 from __future__ import annotations
 from pydantic import BaseModel, Field, confloat, model_validator
 from typing import List

@@ -1,3 +1,8 @@
+"""Prompt template loading from YAML or Markdown files.
+
+Supports YAML-based prompts with metadata and Markdown fallback.
+"""
+
 import yaml
 from pathlib import Path
 

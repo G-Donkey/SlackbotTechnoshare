@@ -1,3 +1,9 @@
+"""Configuration management for TechnoShare Commentator.
+
+Loads settings from environment variables and .env file.
+Provides access to Slack credentials, OpenAI API key, MLflow settings, etc.
+"""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from functools import lru_cache

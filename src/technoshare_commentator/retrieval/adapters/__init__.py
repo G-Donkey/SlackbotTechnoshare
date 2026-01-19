@@ -1,3 +1,9 @@
+"""Content retrieval adapters for different URL types.
+
+Provides protocol-based adapters for fetching evidence from
+various sources (generic web, YouTube, etc.).
+"""
+
 from typing import Dict, Any, Protocol
 from ..fetch import fetcher
 from ..extract import extract_content, create_snippets

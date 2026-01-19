@@ -1,3 +1,8 @@
+"""HTTP fetching with retry logic.
+
+Fetches web content with exponential backoff and user-agent headers.
+"""
+
 import httpx
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from ..config import get_settings

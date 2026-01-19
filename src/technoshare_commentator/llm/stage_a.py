@@ -1,3 +1,9 @@
+"""Stage A: Fact extraction from evidence.
+
+Extracts key facts and relevance from web content using LLM
+with optional tool-based search for additional context.
+"""
+
 from .client import llm_client
 from .prompts import load_prompt
 from ..schemas.evidence import EvidencePack

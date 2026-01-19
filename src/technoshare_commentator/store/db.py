@@ -1,3 +1,9 @@
+"""SQLite database connection and schema management.
+
+Provides get_db_connection() context manager and init_db() for schema creation.
+Stores messages and jobs tables for the event queue.
+"""
+
 import sqlite3
 from ..config import get_settings
 from contextlib import contextmanager

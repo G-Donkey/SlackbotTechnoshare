@@ -1,3 +1,9 @@
+"""Repository pattern for database operations.
+
+Provides atomic operations for message storage and job queue management.
+Handles idempotency via unique message timestamps.
+"""
+
 from datetime import datetime
 from typing import Optional, Dict, Any
 from .db import get_db_connection

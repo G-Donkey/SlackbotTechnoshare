@@ -1,3 +1,9 @@
+"""Slack mrkdwn formatting for LLM outputs.
+
+Converts Stage B results to Slack-compatible mrkdwn with proper
+bold, lists, and section formatting.
+"""
+
 from __future__ import annotations
 
 import re

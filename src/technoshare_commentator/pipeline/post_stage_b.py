@@ -1,3 +1,8 @@
+"""Stage B result posting to Slack.
+
+Renders LLM output to Slack mrkdwn format and posts as threaded reply.
+"""
+
 from __future__ import annotations
 
 from typing import Optional

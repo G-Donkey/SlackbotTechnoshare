@@ -1,3 +1,8 @@
+"""Logging configuration with Rich formatting.
+
+Provides setup_logging() for app initialization and get_logger() for module-level loggers.
+"""
+
 import logging
 from rich.logging import RichHandler
 from .config import get_settings

@@ -1,3 +1,9 @@
+"""OpenAI client wrapper with tool support.
+
+Provides structured output parsing with optional tool calls
+for dynamic web content retrieval during LLM inference.
+"""
+
 import json
 from typing import TypeVar, Generic, List, Optional, Union
 from openai import OpenAI

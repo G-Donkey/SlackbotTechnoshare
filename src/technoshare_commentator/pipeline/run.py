@@ -1,3 +1,15 @@
+"""Main pipeline orchestrator for processing Slack messages.
+
+Executes the 7-stage pipeline:
+1. URL extraction
+2. Evidence retrieval (via adapters)
+3. Stage A: Fact extraction (LLM)
+4. Stage B: Reply composition (LLM)
+5. Quality gates validation
+6. Slack posting
+7. Job completion
+"""
+
 import logging
 from ..store.repo import Repo
 from ..retrieval.url import extract_urls
