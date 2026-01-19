@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 class Settings(BaseSettings):
     SLACK_BOT_TOKEN: str = Field(..., description="Slack Bot User OAuth Token")
-    SLACK_SIGNING_SECRET: str = Field(..., description="Slack Signing Secret")
+    SLACK_APP_TOKEN: str = Field(..., description="Slack App-Level Token (for Socket Mode)")
     TECHNOSHARE_CHANNEL_ID: str = Field(..., description="Channel ID to monitor")
     OPENAI_API_KEY: str = Field(..., description="OpenAI API Key")
     DB_PATH: str = Field("./db.sqlite", description="Path to SQLite database")

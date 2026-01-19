@@ -9,14 +9,10 @@ from technoshare_commentator.slack.client import slack_client
 
 def post_stage_b_result(channel: str, thread_ts: Optional[str], result: StageBResult) -> dict:
     """
-    Validate, render and post a StageBResult to Slack using Block Kit mrkdwn.
+    Render and post a StageBResult to Slack using Block Kit mrkdwn.
     Returns the payload that was posted for testing / logging.
     """
-    # If result is already a StageBResult instance, use it directly
-    # Otherwise validate it (useful for dict inputs in tests)
-    if not isinstance(result, StageBResult):
-        result = StageBResult.model_validate(result)
-
+    # Result should already be a StageBResult instance from pipeline
     slack_text = render_stage_b_to_slack(result)
     payload = build_post_payload(channel=channel, text=slack_text, thread_ts=thread_ts)
 
