@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     MODEL_STAGE_A: str = "gpt-4o"
     MODEL_STAGE_B: str = "gpt-4o"
     LOG_LEVEL: str = "INFO"
+    
+    # MLflow settings
+    MLFLOW_TRACKING_URI: str = Field("http://127.0.0.1:5000", description="MLflow tracking server URI")
+    MLFLOW_EXPERIMENT_NAME: str = Field("technoshare_commentator", description="MLflow experiment name")
+    MLFLOW_ENABLE_TRACKING: bool = Field(True, description="Enable MLflow tracking")
+    MLFLOW_ENABLE_TRACING: bool = Field(True, description="Enable MLflow tracing")
 
     model_config = SettingsConfigDict(
         env_file=".env",

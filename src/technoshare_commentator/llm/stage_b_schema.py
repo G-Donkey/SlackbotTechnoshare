@@ -18,7 +18,12 @@ class StageBResult(BaseModel):
     def validate_constraints(self) -> "StageBResult":
         def is_full_sentence(s: str) -> bool:
             s = s.strip()
-            return bool(s) and s[-1] in {".", "!", "?"}
+            if not s:
+                return False
+            # Check if sentence ends with punctuation (possibly followed by quotes/brackets)
+            # Look at last few characters to be more lenient
+            last_chars = s[-3:] if len(s) >= 3 else s
+            return any(char in {".", "!", "?"} for char in last_chars)
 
         for s in self.tldr:
             if "\n" in s:

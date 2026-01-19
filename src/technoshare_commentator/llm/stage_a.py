@@ -6,7 +6,7 @@ from ..config import get_settings
 
 settings = get_settings()
 
-def run_stage_a(evidence: EvidencePack) -> StageAResult:
+def run_stage_a(evidence: EvidencePack, return_meta: bool = False):
     prompt_template = load_prompt("stage_a_extract_facts")
     
     # Updated prompt injection to encourage tool usage
@@ -19,4 +19,8 @@ def run_stage_a(evidence: EvidencePack) -> StageAResult:
         "before checking for facts."
     )
     
-    return llm_client.run_with_tools(prompt, StageAResult, model=settings.MODEL_STAGE_A)
+    result = llm_client.run_with_tools(prompt, StageAResult, model=settings.MODEL_STAGE_A, return_meta=True)
+    
+    if return_meta:
+        return result.parsed, result.meta
+    return result.parsed

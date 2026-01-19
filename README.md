@@ -59,16 +59,23 @@ This repository is built with **production-grade engineering practices**, moving
    - Copy `.env.example` to `.env`
    - Fill in Slack tokens and OpenAI key.
    - Set `TECHNOSHARE_CHANNEL_ID`.
+   - Optionally configure MLflow (see [MLflow Setup](#mlflow-llmops-optional))
 
 ## Running
 
-1. **Ingest Server** (receives Slack events):
+1. **MLflow Server** (optional, for tracking/observability):
+   ```bash
+   ./scripts/start_mlflow.sh
+   ```
+   Access UI at http://127.0.0.1:5000
+
+2. **Ingest Server** (receives Slack events):
    ```bash
    uv run uvicorn technoshare_commentator.main_ingest:app --reload --port 3000
    ```
    *Note: Ensure your tunnel (ngrok) points to localhost:3000*
 
-2. **Worker** (processes jobs):
+3. **Worker** (processes jobs):
    ```bash
    uv run python -m technoshare_commentator.main_worker
    ```
@@ -83,3 +90,64 @@ This repository is built with **production-grade engineering practices**, moving
   ```bash
   uv run python scripts/replay_event.py
   ```
+- **Run evaluation suite**:
+  ```bash
+  python scripts/run_eval.py
+  ```
+- **Sync prompts to MLflow**:
+  ```bash
+  python scripts/sync_prompts.py
+  ```
+
+---
+
+## 🔬 MLflow LLMOps (Optional)
+
+This project includes comprehensive MLflow-based LLMOps for production-grade observability:
+
+### Features
+- **📊 Experiment Tracking**: Automatic logging of params, metrics, and artifacts for every job
+- **🔍 LLM Tracing**: Span-based observability for LLM calls, tool usage, and pipeline stages
+- **📝 Prompt Versioning**: Version control and aliasing for prompt templates
+- **✅ Evaluation Suite**: Automated quality checks with hard and soft scorers
+
+### Quick Start
+
+```bash
+# 1. Start MLflow server
+./scripts/start_mlflow.sh
+
+# 2. Add to .env
+MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+MLFLOW_ENABLE_TRACKING=true
+MLFLOW_ENABLE_TRACING=true
+
+# 3. Run pipeline (auto-logs to MLflow)
+python -m technoshare_commentator.main_worker
+
+# 4. View UI
+open http://127.0.0.1:5000
+```
+
+### Documentation
+- **📖 Full Guide**: [docs/MLFLOW_GUIDE.md](docs/MLFLOW_GUIDE.md)
+- **⚡ Quick Reference**: [docs/MLFLOW_QUICKSTART.md](docs/MLFLOW_QUICKSTART.md)
+
+### What Gets Tracked
+Every pipeline run automatically logs:
+- Latency, token counts, tool usage
+- Evidence, facts, outputs as artifacts
+- Quality gate results
+- Source URLs and adapter coverage
+- Nested spans for debugging
+
+### Evaluation
+```bash
+# Add test cases to data/eval_dataset.json
+# Run evaluation suite
+python scripts/run_eval.py
+
+# View results in MLflow UI (experiment: technoshare_eval)
+```
+
+---

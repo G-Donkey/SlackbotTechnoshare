@@ -20,6 +20,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "ngrok>=1.7.0",
     "markupsafe>=3.0.3",
+    "mlflow>=2.14.0",
 ]
 
 [project.scripts]

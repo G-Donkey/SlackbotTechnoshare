@@ -7,3 +7,6 @@ db.sqlite
 logs/
 coverage/
 .pytest_cache/
+*.json
+*.db
+*.txt
