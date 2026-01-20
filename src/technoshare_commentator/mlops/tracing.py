@@ -1,72 +1,98 @@
 """
-MLflow tracing integration for LLM observability.
+Langfuse tracing integration for LLM observability.
 Provides span-based tracing for retrieval, LLM calls, quality gates, and Slack posting.
 """
 import logging
+import os
 import time
 from typing import Optional, Dict, Any, Callable
 from functools import wraps
 from contextlib import contextmanager
 
-import mlflow
+from langfuse import Langfuse, observe
 
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Initialize Langfuse client
+_langfuse_client: Optional[Langfuse] = None
 
-class MLflowTracer:
-    """Handles MLflow tracing for LLM observability."""
+
+def _get_langfuse() -> Optional[Langfuse]:
+    """Get or create Langfuse client singleton."""
+    global _langfuse_client
+    
+    if not settings.LANGFUSE_ENABLED:
+        return None
+    
+    if _langfuse_client is None:
+        try:
+            # Set environment variables for Langfuse SDK
+            os.environ["LANGFUSE_HOST"] = settings.LANGFUSE_HOST
+            if settings.LANGFUSE_PUBLIC_KEY:
+                os.environ["LANGFUSE_PUBLIC_KEY"] = settings.LANGFUSE_PUBLIC_KEY
+            if settings.LANGFUSE_SECRET_KEY:
+                os.environ["LANGFUSE_SECRET_KEY"] = settings.LANGFUSE_SECRET_KEY
+            
+            _langfuse_client = Langfuse()
+            logger.info(f"Langfuse tracing enabled: {settings.LANGFUSE_HOST}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Langfuse: {e}")
+            return None
+    
+    return _langfuse_client
+
+
+class LangfuseTracer:
+    """Handles Langfuse tracing for LLM observability.
+    
+    Note: In Langfuse v3, tracing is primarily done via:
+    - @observe decorator for automatic function tracing
+    - langfuse.openai wrapper for automatic OpenAI call tracing
+    - Manual trace/span creation via the Langfuse client
+    
+    The span() method here is a simple pass-through for compatibility
+    with existing code. Real tracing happens at the tracker level.
+    """
     
     def __init__(self):
-        self.enabled = settings.MLFLOW_ENABLE_TRACING
-        if self.enabled:
-            try:
-                mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
-                logger.info("MLflow tracing enabled")
-            except Exception as e:
-                logger.warning(f"Failed to initialize MLflow tracing: {e}")
-                self.enabled = False
+        self.enabled = settings.LANGFUSE_ENABLED
+        self.client = _get_langfuse()
+        if self.client:
+            logger.info("Langfuse tracing initialized")
+        elif self.enabled:
+            logger.warning("Langfuse enabled but client failed to initialize")
+            self.enabled = False
         else:
-            logger.info("MLflow tracing disabled")
+            logger.info("Langfuse tracing disabled")
     
     @contextmanager
     def span(
         self,
         name: str,
-        span_type: str = "UNKNOWN",
+        span_type: str = "DEFAULT",
         attributes: Optional[Dict[str, Any]] = None,
         inputs: Optional[Dict[str, Any]] = None
     ):
         """
         Create a traced span for an operation.
         
-        Args:
-            name: Name of the span (e.g., "analysis.run", "retrieval.fetch")
-            span_type: Type of span (e.g., "LLM", "RETRIEVER", "CHAIN", "TOOL")
-            attributes: Additional metadata for the span
-            inputs: Input data to the operation
+        In Langfuse v3, spans are created via the tracker's trace.
+        This is a compatibility shim that yields context for the operation.
         """
-        if not self.enabled:
+        if not self.enabled or not self.client:
             yield None
             return
         
+        # Simple pass-through - actual tracing is done at tracker level
+        start_time = time.time()
         try:
-            with mlflow.start_span(name=name, span_type=span_type) as span:
-                if attributes:
-                    span.set_attributes(attributes)
-                if inputs:
-                    span.set_inputs(inputs)
-                
-                start_time = time.time()
-                yield span
-                elapsed = time.time() - start_time
-                span.set_attribute("latency_ms", int(elapsed * 1000))
-        except Exception as e:
-            logger.warning(f"Tracing span failed for {name}: {e}")
-            # Don't yield None on error, just let the exception propagate after logging
-            raise
+            yield {"name": name, "type": span_type, "attributes": attributes, "inputs": inputs}
+        finally:
+            elapsed = time.time() - start_time
+            logger.debug(f"Span {name} completed in {elapsed:.3f}s")
     
     def trace_llm_call(
         self,
@@ -77,38 +103,15 @@ class MLflowTracer:
         sources: Optional[list] = None,
         tokens: Optional[Dict[str, int]] = None
     ):
-        """Log details of an LLM call within the current span."""
+        """Log details of an LLM call.
+        
+        Note: With langfuse.openai wrapper, LLM calls are auto-traced.
+        This method is for manual logging if needed.
+        """
         if not self.enabled:
             return
         
-        try:
-            attributes = {
-                "model": model,
-                "prompt_length": len(prompt),
-            }
-            
-            if tool_calls:
-                attributes["tool_calls"] = ",".join(tool_calls)
-                attributes["tool_call_count"] = len(tool_calls)
-            
-            if sources:
-                attributes["sources"] = ",".join(sources)
-                attributes["source_count"] = len(sources)
-            
-            if tokens:
-                attributes.update(tokens)
-            
-            # Get current active span and set attributes
-            try:
-                current_span = mlflow.get_current_active_span()
-                if current_span:
-                    current_span.set_attributes(attributes)
-            except AttributeError:
-                # MLflow version may not have this method, skip silently
-                pass
-            
-        except Exception as e:
-            logger.warning(f"Failed to trace LLM call: {e}")
+        logger.debug(f"LLM call: model={model}, prompt_len={len(prompt)}")
     
     def trace_retrieval(
         self,
@@ -121,23 +124,7 @@ class MLflowTracer:
         if not self.enabled:
             return
         
-        try:
-            attributes = {
-                "url": url,
-                "adapter": adapter_name,
-                "coverage": coverage,
-                "snippet_count": snippet_count,
-            }
-            # Get current active span and set attributes
-            try:
-                current_span = mlflow.get_current_active_span()
-                if current_span:
-                    current_span.set_attributes(attributes)
-            except AttributeError:
-                # MLflow version may not have this method, skip silently
-                pass
-        except Exception as e:
-            logger.warning(f"Failed to trace retrieval: {e}")
+        logger.debug(f"Retrieval: url={url}, adapter={adapter_name}, coverage={coverage}")
     
     def trace_quality_gates(
         self,
@@ -148,30 +135,22 @@ class MLflowTracer:
         if not self.enabled:
             return
         
-        try:
-            attributes = {
-                "gate_failures": len(failures),
-                "gate_total": total_gates,
-                "gate_pass_rate": (total_gates - len(failures)) / total_gates if total_gates > 0 else 1.0,
-            }
-            if failures:
-                attributes["failed_gates"] = ",".join(failures)
-            
-            # Get current active span and set attributes
+        pass_rate = (total_gates - len(failures)) / total_gates if total_gates > 0 else 1.0
+        logger.debug(f"Quality gates: {len(failures)}/{total_gates} failed, pass_rate={pass_rate:.2f}")
+    
+    def flush(self):
+        """Flush any pending traces to Langfuse."""
+        if self.client:
             try:
-                current_span = mlflow.get_current_active_span()
-                if current_span:
-                    current_span.set_attributes(attributes)
-            except AttributeError:
-                # MLflow version may not have this method, skip silently
-                pass
-        except Exception as e:
-            logger.warning(f"Failed to trace quality gates: {e}")
+                self.client.flush()
+            except Exception as e:
+                logger.warning(f"Failed to flush Langfuse: {e}")
 
 
-def traced_operation(name: str, span_type: str = "CHAIN"):
+def traced_operation(name: str, span_type: str = "DEFAULT"):
     """
     Decorator to automatically trace a function as a span.
+    Uses Langfuse @observe decorator under the hood.
     
     Usage:
         @traced_operation("retrieval.fetch", span_type="RETRIEVER")
@@ -179,13 +158,13 @@ def traced_operation(name: str, span_type: str = "CHAIN"):
             ...
     """
     def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            with tracer.span(name=name, span_type=span_type):
-                return func(*args, **kwargs)
-        return wrapper
+        if not settings.LANGFUSE_ENABLED:
+            return func
+        
+        # Apply Langfuse observe decorator
+        return observe(name=name)(func)
     return decorator
 
 
 # Global tracer instance
-tracer = MLflowTracer()
+tracer = LangfuseTracer()

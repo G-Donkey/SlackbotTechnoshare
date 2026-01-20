@@ -1,13 +1,15 @@
-"""OpenAI client wrapper with tool support.
+"""OpenAI client wrapper with tool support and Langfuse tracing.
 
 Provides structured output parsing with optional tool calls
 for dynamic web content retrieval during LLM inference.
+Automatically traces all LLM calls via Langfuse.
 """
 
 import json
 from typing import TypeVar, Generic, List, Optional, Union
 from openai import OpenAI
 from pydantic import BaseModel
+from langfuse.openai import openai as langfuse_openai
 from ..config import get_settings
 from ..retrieval.fetch import fetcher
 from ..retrieval.extract import extract_content
@@ -36,7 +38,17 @@ def get_web_content(url: str) -> str:
 
 class LLMClient:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        # Use Langfuse-wrapped OpenAI client for automatic tracing
+        if settings.LANGFUSE_ENABLED:
+            # Pass Langfuse credentials explicitly to ensure they're picked up
+            import os
+            os.environ["LANGFUSE_PUBLIC_KEY"] = settings.LANGFUSE_PUBLIC_KEY
+            os.environ["LANGFUSE_SECRET_KEY"] = settings.LANGFUSE_SECRET_KEY
+            os.environ["LANGFUSE_HOST"] = settings.LANGFUSE_HOST
+            
+            self.client = langfuse_openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+        else:
+            self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
     def run_structured(self, prompt: str, schema_model: type, model: str = "gpt-4o"):
         completion = self.client.beta.chat.completions.parse(

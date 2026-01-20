@@ -14,13 +14,12 @@ from ..config import get_settings
 settings = get_settings()
 
 
-def run_analysis(evidence: EvidencePack, project_context: Dict[str, Any]) -> AnalysisResult:
+def run_analysis(evidence: EvidencePack) -> AnalysisResult:
     """
     Analyze evidence and generate structured reply in a single LLM call.
     
     Args:
         evidence: Extracted web content (snippets and sources)
-        project_context: Company themes, tech stack, use-cases
         
     Returns:
         AnalysisResult with tldr, summary, projects, similar_tech
@@ -28,12 +27,10 @@ def run_analysis(evidence: EvidencePack, project_context: Dict[str, Any]) -> Ana
     prompt_template = load_prompt("analyze")
     
     evidence_dump = evidence.model_dump_json(indent=2)
-    context_dump = str(project_context)
     
     prompt = (
         f"{prompt_template}\n\n"
-        f"# Evidence\n{evidence_dump}\n\n"
-        f"# ProjectContext\n{context_dump}"
+        f"# Evidence\n{evidence_dump}"
     )
     
     return llm_client.run_structured(prompt, AnalysisResult, model=settings.MODEL)

@@ -265,8 +265,8 @@ python -m src.technoshare_commentator.main_worker
 Run pipeline directly on latest message:
 
 ```bash
-# Disable MLflow tracking (optional)
-export MLFLOW_ENABLE_TRACKING=false
+# Disable Langfuse tracking (optional)
+export LANGFUSE_ENABLED=false
 
 # Run on latest message
 python scripts/run_pipeline_on_latest.py

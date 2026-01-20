@@ -1,31 +1,33 @@
 """
 Evaluation runner for TechnoShare Commentator.
-Runs evaluation suite and logs results to MLflow.
+Runs evaluation suite and logs results to Langfuse.
 """
 import logging
 from typing import Optional, List
 from pathlib import Path
 
-import mlflow
+from langfuse import Langfuse
 
 from .dataset import EvalDataset, EvalExample, load_or_create_dataset
 from .scorers import run_hard_checks, EvalScores
 from ...pipeline.run import Pipeline
 from ...llm.schema import AnalysisResult
 from ...config import get_settings
+from ..tracing import _get_langfuse
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
 class EvalRunner:
-    """Runs evaluation suite and logs to MLflow."""
+    """Runs evaluation suite and logs to Langfuse."""
     
     def __init__(self, dataset_path: Optional[Path] = None):
         if dataset_path is None:
             dataset_path = Path("data/eval_dataset.json")
         self.dataset = load_or_create_dataset(dataset_path)
         self.pipeline = Pipeline()
+        self.langfuse = _get_langfuse()
     
     def run_example(self, example: EvalExample) -> tuple[Optional[AnalysisResult], EvalScores]:
         """
@@ -37,7 +39,6 @@ class EvalRunner:
             from ...retrieval.url import extract_urls
             from ...retrieval.adapters import get_adapter
             from ...llm.analyze import run_analysis
-            from ...config import load_project_context
             
             # Extract URL
             urls = extract_urls(example.slack_text)
@@ -52,8 +53,7 @@ class EvalRunner:
             evidence = adapter.fetch_evidence(target_url)
             
             # Single-stage analysis
-            context = load_project_context()
-            result = run_analysis(evidence, context)
+            result = run_analysis(evidence)
             
             # Score the result
             scores = run_hard_checks(result)
@@ -71,12 +71,12 @@ class EvalRunner:
         experiment_name: str = "technoshare_eval"
     ) -> dict:
         """
-        Run evaluation suite and log to MLflow.
+        Run evaluation suite and log to Langfuse.
         
         Args:
             example_ids: Specific example IDs to evaluate (None = all)
             tags: Filter examples by tags (None = no filter)
-            experiment_name: MLflow experiment name
+            experiment_name: Langfuse session name
         
         Returns:
             Summary dict with results
@@ -94,63 +94,81 @@ class EvalRunner:
             logger.warning("No examples to evaluate")
             return {"total": 0, "passed": 0, "failed": 0}
         
-        # Set MLflow experiment
-        mlflow.set_experiment(experiment_name)
+        # Create a Langfuse trace for evaluation
+        trace = None
+        if self.langfuse:
+            trace = self.langfuse.trace(
+                name="eval_suite",
+                metadata={
+                    "dataset_name": self.dataset.name,
+                    "dataset_version": self.dataset.version,
+                    "num_examples": len(examples),
+                    "experiment_name": experiment_name,
+                },
+                tags=["evaluation"],
+            )
         
         # Run evaluation
         results = []
-        with mlflow.start_run(run_name="eval_suite"):
-            mlflow.log_param("dataset_name", self.dataset.name)
-            mlflow.log_param("dataset_version", self.dataset.version)
-            mlflow.log_param("num_examples", len(examples))
+        
+        for example in examples:
+            logger.info(f"Evaluating example: {example.id}")
             
-            for example in examples:
-                logger.info(f"Evaluating example: {example.id}")
+            result, scores = self.run_example(example)
+            
+            if result:
+                pass_rate = scores.overall_pass_rate()
                 
-                result, scores = self.run_example(example)
-                
-                if result:
-                    # Log metrics for this example
-                    pass_rate = scores.overall_pass_rate()
-                    mlflow.log_metric(f"{example.id}_pass_rate", pass_rate)
-                    
-                    # Log individual scores
+                # Log score to Langfuse
+                if trace and self.langfuse:
+                    self.langfuse.score(
+                        trace_id=trace.id,
+                        name=f"{example.id}_pass_rate",
+                        value=pass_rate,
+                    )
                     for score in scores.scores:
-                        mlflow.log_metric(f"{example.id}_{score.name}", score.score)
-                    
-                    results.append({
-                        "example_id": example.id,
-                        "passed": pass_rate == 1.0,
-                        "pass_rate": pass_rate,
-                        "scores": scores.model_dump()
-                    })
-                else:
-                    results.append({
-                        "example_id": example.id,
-                        "passed": False,
-                        "pass_rate": 0.0,
-                        "error": "Failed to run example"
-                    })
+                        self.langfuse.score(
+                            trace_id=trace.id,
+                            name=f"{example.id}_{score.name}",
+                            value=score.score,
+                        )
+                
+                results.append({
+                    "example_id": example.id,
+                    "passed": pass_rate == 1.0,
+                    "pass_rate": pass_rate,
+                    "scores": scores.model_dump()
+                })
+            else:
+                results.append({
+                    "example_id": example.id,
+                    "passed": False,
+                    "pass_rate": 0.0,
+                    "error": "Failed to run example"
+                })
+        
+        # Aggregate results
+        total = len(results)
+        passed = sum(1 for r in results if r["passed"])
+        failed = total - passed
+        overall_pass_rate = passed / total if total > 0 else 0.0
+        
+        # Log aggregate metrics
+        if trace and self.langfuse:
+            self.langfuse.score(trace_id=trace.id, name="total_examples", value=float(total))
+            self.langfuse.score(trace_id=trace.id, name="passed_examples", value=float(passed))
+            self.langfuse.score(trace_id=trace.id, name="failed_examples", value=float(failed))
+            self.langfuse.score(trace_id=trace.id, name="overall_pass_rate", value=overall_pass_rate)
             
-            # Aggregate results
-            total = len(results)
-            passed = sum(1 for r in results if r["passed"])
-            failed = total - passed
-            overall_pass_rate = passed / total if total > 0 else 0.0
+            # Update trace output with results
+            trace.update(output={
+                "results": results,
+                "summary": {"total": total, "passed": passed, "failed": failed}
+            })
             
-            # Log aggregate metrics
-            mlflow.log_metric("total_examples", total)
-            mlflow.log_metric("passed_examples", passed)
-            mlflow.log_metric("failed_examples", failed)
-            mlflow.log_metric("overall_pass_rate", overall_pass_rate)
-            
-            # Log results as artifact
-            mlflow.log_dict(
-                {"results": results, "summary": {"total": total, "passed": passed, "failed": failed}},
-                "eval_results.json"
-            )
-            
-            logger.info(f"Evaluation complete: {passed}/{total} passed ({overall_pass_rate:.1%})")
+            self.langfuse.flush()
+        
+        logger.info(f"Evaluation complete: {passed}/{total} passed ({overall_pass_rate:.1%})")
         
         return {
             "total": total,

@@ -11,7 +11,7 @@ TechnoShare Commentator monitors Slack channels for shared links, analyzes them 
 ### Key Features
 - **🔌 Socket Mode**: WebSocket-based connection (no public URL required)
 - **🧠 Single-Stage LLM Pipeline**: Combined analysis and composition in one call
-- **📊 MLflow Integration**: Optional tracking and tracing for observability
+- **📊 Langfuse Integration**: Optional tracking and tracing for LLM observability
 - **⚡ Async Job Queue**: SQLite-backed queue with idempotent processing
 
 ---
@@ -102,32 +102,18 @@ Evidence Pack Output:
 #### Stage 3: Analysis (Single LLM Call)
 **Component:** `llm/analyze.py`, `llm/schema.py`
 
-Single LLM call that analyzes evidence and generates structured Slack reply with business context.
+Single LLM call that analyzes evidence and generates structured Slack reply.
 
 **What it does:**
 1. Loads prompt template from `data/prompts/analyze.yaml`
-2. Combines evidence with project context (`data/project_context.yaml`)
-3. Calls GPT-4o to generate all reply sections in one request
-4. Enforces strict Pydantic validation on output structure
+2. Calls GPT-4o to generate all reply sections in one request
+3. Enforces strict Pydantic validation on output structure
 
 **Why single-stage?**
 - **Faster**: ~3-5s total vs ~6-10s with two stages
 - **Cheaper**: ~$0.01/link vs ~$0.02/link
 - **Simpler**: One prompt to maintain, fewer failure points
 - **Better context**: LLM sees full evidence when composing reply
-
-**Project Context Example** (`data/project_context.yaml`):
-```yaml
-company: "AI Consulting BV"
-focus_areas:
-  - Document processing automation
-  - Customer service chatbots
-  - Data pipeline optimization
-clients:
-  - Financial services
-  - Healthcare
-  - E-commerce
-```
 
 **Output Schema:**
 ```python
@@ -338,7 +324,7 @@ src/technoshare_commentator/
 ├── schemas/           # Pydantic models
 ├── slack/             # Slack client and posting
 ├── store/             # SQLite database layer
-└── mlops/             # MLflow tracking/tracing (optional)
+└── mlops/             # Langfuse tracking/tracing (optional)
 ```
 
 ---
@@ -385,28 +371,33 @@ uv run python -m technoshare_commentator.main_worker
 
 ---
 
-## 🔬 MLflow (Optional)
+## 🔬 Langfuse (Optional)
 
-Enable LLM observability with MLflow tracking and tracing.
+Enable LLM observability with Langfuse tracking and tracing.
 
 ### Setup
 ```bash
-# Start MLflow server
-./scripts/start_mlflow.sh
+# Self-hosted Langfuse: docker-compose up -d
+# Or use Langfuse Cloud: https://cloud.langfuse.com
 
 # Add to .env
-MLFLOW_TRACKING_URI=http://127.0.0.1:5000
-MLFLOW_ENABLE_TRACKING=true
-MLFLOW_ENABLE_TRACING=true
+LANGFUSE_HOST=http://localhost:3000
+LANGFUSE_PUBLIC_KEY=pk-lf-xxx
+LANGFUSE_SECRET_KEY=sk-lf-xxx
+LANGFUSE_ENABLED=true
 ```
 
 ### What Gets Tracked
-- Pipeline latency and token usage
-- Evidence, facts, and outputs as artifacts
-- Quality gate results
-- Nested spans for debugging
+- **Traces**: Full pipeline runs with nested spans
+- **LLM Calls**: Automatic OpenAI instrumentation (prompts, completions, tokens, cost)
+- **Metrics**: Pipeline latency, token usage, quality gate results
+- **Artifacts**: Evidence, analysis outputs logged as trace metadata
 
-📖 See [docs/MLFLOW.md](docs/MLFLOW.md) for full documentation.
+### Features
+- Automatic OpenAI call tracing via `observe_openai` wrapper
+- Decorator-based function tracing with `@observe`
+- Prompt management and versioning
+- Evaluation tracking with scores
 
 ---
 
@@ -428,6 +419,6 @@ INTEGRATION_TEST=1 uv run pytest tests/integration/
 ## 📚 Documentation
 
 - [Slack Integration](src/technoshare_commentator/slack/README.md) - Socket Mode architecture
-- [MLflow Guide](docs/MLFLOW.md) - LLMOps and observability
+- [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system overview
 
 ---

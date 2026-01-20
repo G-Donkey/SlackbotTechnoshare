@@ -39,9 +39,9 @@ class AnalysisResult(BaseModel):
         if not self.summary.strip():
             raise ValueError("Summary must not be empty")
 
+        # Project bullets should just be non-empty strings
         for b in self.projects:
-            # Each bullet should start with bold theme name like "**ThemeName** —"
-            if not (b.strip().startswith("**") and "**" in b[3:] and " — " in b):
-                raise ValueError(f"Each project bullet must start with '**ThemeName** — ...' -> {b!r}")
+            if not b.strip():
+                raise ValueError(f"Each project bullet must be non-empty")
 
         return self

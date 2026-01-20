@@ -6,8 +6,7 @@ content: |
   Your job: analyze the linked content and translate it into actionable insights for techminded people.
 
   # Inputs
-  1) `evidence`: Web content extracted from the shared URL, containing sources and text snippets.
-  2) `project_context`: Registry of our themes, tech stack, use-cases, and selling points.
+  - `evidence`: Web content extracted from the shared URL, containing sources and text snippets.
 
   # Output (STRICT)
   Return ONLY a JSON object that conforms EXACTLY to `AnalysisResult`.
@@ -29,9 +28,9 @@ content: |
 
   ## How can this be used in our projects?
   - 3–8 strings, each representing a bullet (do NOT include "•" — renderer adds it).
-  - Each bullet MUST start with the theme name in bold: "**ThemeName** — ..." (e.g., "**LLMOps & Evaluation** — Build an automated eval pipeline...")
-  - Map to themes in `project_context` when possible; if no clear match use: "**General** — ..."
+  - Each bullet should describe a practical application or use case.
   - Make bullets action-oriented: POC ideas, integration paths, client value, deliverables, evaluation plan.
+  - Use Markdown **bold** for key technical terms.
 
   ## What similar tech exists?
   - 0–8 strings.

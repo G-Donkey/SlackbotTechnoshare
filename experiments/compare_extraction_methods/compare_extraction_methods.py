@@ -29,7 +29,6 @@ from technoshare_commentator.retrieval.extract import extract_content, create_sn
 from technoshare_commentator.llm.analyze import run_analysis
 from technoshare_commentator.schemas.evidence import EvidencePack, EvidenceSource
 from technoshare_commentator.llm.schema import AnalysisResult
-from technoshare_commentator.config import load_project_context
 
 settings = get_settings()
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -132,7 +131,7 @@ def _extract_web_sources_from_responses(resp) -> List[Dict[str, Any]]:
 # Method A: HTML -> LLM (no web)
 # -------------------------
 
-def method_A_html_to_llm(url: str, project_context: Dict[str, Any]) -> ExperimentResult:
+def method_A_html_to_llm(url: str) -> ExperimentResult:
     """A: Fetch HTML → Extract → Pass snippets/content to LLM (no web access)."""
     result = ExperimentResult(url, "method_A_html_no_web")
     
@@ -164,7 +163,7 @@ def method_A_html_to_llm(url: str, project_context: Dict[str, Any]) -> Experimen
         
         # 4. Call LLM with our prompt
         print(f"  Analyzing with LLM (no web tool)...")
-        analysis_result = run_analysis(evidence, project_context)
+        analysis_result = run_analysis(evidence)
         
         # run_analysis returns AnalysisResult (Pydantic model)
         result_dict = analysis_result.model_dump()
@@ -190,26 +189,23 @@ def method_A_html_to_llm(url: str, project_context: Dict[str, Any]) -> Experimen
 # Method B: URL -> LLM (with web_search tool)
 # -------------------------
 
-def method_B_url_with_web(url: str, project_context: Dict[str, Any]) -> ExperimentResult:
+def method_B_url_with_web(url: str) -> ExperimentResult:
     """B: Pass URL directly to LLM; allow web access via Responses API web_search."""
     result = ExperimentResult(url, "method_B_url_with_web")
     
     try:
         print(f"  Calling LLM with web_search for {url}...")
         
-        system_prompt = f"""You are an AI analyst for {project_context.get('company', 'our company')}.
+        system_prompt = """You are an AI analyst.
 Goal: Produce the best possible answer. You may use web search.
 
-Focus areas:
-{chr(10).join(f"- {a}" for a in project_context.get('focus_areas', []))}
-
 Return ONLY a JSON object:
-{{
+{
   "tldr": ["sentence 1", "sentence 2", "sentence 3"],
   "summary": "5-10 sentence paragraph",
   "projects": ["**Project 1** — description", "..."],
   "similar_tech": ["**Tech 1** — description", "..."]
-}}
+}
 """
         
         user_prompt = f"""Analyze the content at this URL:
@@ -302,7 +298,6 @@ Return ONLY JSON:
 def assess_term_grounded_relevance(
     *,
     url: str,
-    project_context: Dict[str, Any],
     reference_snippets: List[Dict[str, Any]],
     output_A: Dict[str, Any],
     output_B: Dict[str, Any],
@@ -398,9 +393,6 @@ def run_experiment():
     print()
     
     # Load project context
-    project_context = load_project_context()
-    
-    results: List[ExperimentResult] = []
     
     for i, url in enumerate(TEST_URLS, 1):
         print(f"\n[{i}/{len(TEST_URLS)}] Testing URL: {url}")
@@ -408,7 +400,7 @@ def run_experiment():
         
         # Test Method A: Our approach
         print("\n  OPTION A: HTML content given to LLM (no web access)")
-        resA = method_A_html_to_llm(url, project_context)
+        resA = method_A_html_to_llm(url)
         results.append(resA)
         
         print(f"    ✓ Completed in {resA.latency:.2f}s")
@@ -420,7 +412,7 @@ def run_experiment():
         
         # Test Method B: LLM with web access
         print("\n  OPTION B: URL given to LLM (with web access)")
-        resB = method_B_url_with_web(url, project_context)
+        resB = method_B_url_with_web(url)
         results.append(resB)
         
         print(f"    ✓ Completed in {resB.latency:.2f}s")
@@ -443,7 +435,6 @@ def run_experiment():
             print("\n  QUALITY ASSESSMENT (term-grounded relevance)")
             q = assess_term_grounded_relevance(
                 url=url,
-                project_context=project_context,
                 reference_snippets=resA.reference_snippets,
                 output_A=resA.output,
                 output_B=resB.output,

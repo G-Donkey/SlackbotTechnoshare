@@ -16,12 +16,7 @@ def sample_evidence():
     )
 
 
-@pytest.fixture
-def sample_project_context():
-    return {"themes": [{"name": "AI Ops"}, {"name": "Cloud Native"}]}
-
-
-def test_analysis_runs_with_evidence_and_context(sample_evidence, sample_project_context):
+def test_analysis_runs_with_evidence_and_context(sample_evidence):
     """
     WHY: Verify that run_analysis correctly sends evidence + context to the LLM.
     HOW: Mock `llm_client.run_structured` to return a valid `AnalysisResult`.
@@ -41,18 +36,16 @@ def test_analysis_runs_with_evidence_and_context(sample_evidence, sample_project
     )
     
     with patch.object(llm_client, 'run_structured', return_value=expected_output) as mock_run:
-        result = run_analysis(sample_evidence, sample_project_context)
+        result = run_analysis(sample_evidence)
         
         # Check call arguments
         mock_run.assert_called_once()
         call_args = mock_run.call_args
         prompt_arg = call_args[0][0]
         
-        # Verify prompt contains evidence and context
+        # Verify prompt contains evidence
         assert "# Evidence" in prompt_arg
         assert "Python 4.0 released today" in prompt_arg
-        assert "# ProjectContext" in prompt_arg
-        assert "AI Ops" in prompt_arg
         
         # Verify return
         assert result == expected_output
@@ -60,7 +53,7 @@ def test_analysis_runs_with_evidence_and_context(sample_evidence, sample_project
         assert len(result.summary) >= 100  # summary is now a string with min 100 chars
 
 
-def test_llm_malformed_response_propagates_error(sample_evidence, sample_project_context):
+def test_llm_malformed_response_propagates_error(sample_evidence):
     """
     WHY: LLMs sometimes fail to return valid JSON. We want errors to propagate.
     HOW: Mock `run_structured` to raise an error.
@@ -70,4 +63,4 @@ def test_llm_malformed_response_propagates_error(sample_evidence, sample_project
     
     with patch.object(llm_client, 'run_structured', side_effect=ValueError("Invalid JSON")):
         with pytest.raises(ValueError):
-            run_analysis(sample_evidence, sample_project_context)
+            run_analysis(sample_evidence)

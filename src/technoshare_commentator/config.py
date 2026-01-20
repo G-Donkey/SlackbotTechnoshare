@@ -1,7 +1,7 @@
 """Configuration management for TechnoShare Commentator.
 
 Loads settings from environment variables and .env file.
-Provides access to Slack credentials, OpenAI API key, MLflow settings, etc.
+Provides access to Slack credentials, OpenAI API key, Langfuse settings, etc.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,11 +21,11 @@ class Settings(BaseSettings):
     MODEL: str = Field("gpt-4o", description="LLM model for analysis (env has priority)")
     LOG_LEVEL: str = "INFO"
     
-    # MLflow settings
-    MLFLOW_TRACKING_URI: str = Field("http://127.0.0.1:5000", description="MLflow tracking server URI")
-    MLFLOW_EXPERIMENT_NAME: str = Field("technoshare_commentator", description="MLflow experiment name")
-    MLFLOW_ENABLE_TRACKING: bool = Field(True, description="Enable MLflow tracking")
-    MLFLOW_ENABLE_TRACING: bool = Field(True, description="Enable MLflow tracing")
+    # Langfuse settings
+    LANGFUSE_HOST: str = Field("http://localhost:3000", description="Langfuse server host URL")
+    LANGFUSE_PUBLIC_KEY: str = Field("", description="Langfuse public key")
+    LANGFUSE_SECRET_KEY: str = Field("", description="Langfuse secret key")
+    LANGFUSE_ENABLED: bool = Field(True, description="Enable Langfuse tracing")
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -36,13 +36,6 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
-
-def load_project_context() -> Dict[str, Any]:
-    path = Path("data/project_context.yaml")
-    if not path.exists():
-        return {}
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
 
 def load_domain_rules() -> Dict[str, Any]:
     path = Path("data/domain_rules.yaml")

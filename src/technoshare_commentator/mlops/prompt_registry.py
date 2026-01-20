@@ -1,34 +1,31 @@
 """
-MLflow Prompt Registry integration for TechnoShare Commentator.
-Provides prompt versioning, aliasing, and controlled rollout.
+Langfuse Prompt Registry integration for TechnoShare Commentator.
+Provides prompt versioning, management, and retrieval via Langfuse.
 """
 import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
 import hashlib
 
-import mlflow
-from mlflow.models import ModelSignature
-
 from ..config import get_settings
 from .prompts import load_prompt as load_prompt_from_yaml
+from .tracing import _get_langfuse
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
 class PromptRegistry:
-    """Manages prompts in MLflow's Prompt Registry."""
+    """Manages prompts via Langfuse Prompt Management."""
     
     def __init__(self):
-        self.enabled = settings.MLFLOW_ENABLE_TRACKING
-        if self.enabled:
-            try:
-                mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
-                logger.info("Prompt Registry enabled")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Prompt Registry: {e}")
-                self.enabled = False
+        self.enabled = settings.LANGFUSE_ENABLED
+        self.client = _get_langfuse()
+        if self.client:
+            logger.info("Langfuse Prompt Registry enabled")
+        elif self.enabled:
+            logger.warning("Langfuse enabled but client failed to initialize")
+            self.enabled = False
     
     def _compute_prompt_hash(self, content: str) -> str:
         """Compute hash of prompt content for version tracking."""
@@ -42,7 +39,10 @@ class PromptRegistry:
         tags: Optional[Dict[str, str]] = None
     ) -> Optional[str]:
         """
-        Register a prompt in MLflow.
+        Register a prompt in Langfuse.
+        
+        Note: Langfuse prompts are managed via the UI or API.
+        This method creates a trace to track prompt registration.
         
         Args:
             name: Prompt name (e.g., "analyze")
@@ -51,33 +51,36 @@ class PromptRegistry:
             tags: Additional metadata tags
         
         Returns:
-            Version string if successful, None otherwise
+            Version hash if successful, None otherwise
         """
-        if not self.enabled:
+        if not self.enabled or not self.client:
             return None
         
         try:
-            # Create a unique version based on content hash
             content_hash = self._compute_prompt_hash(content)
             
-            # Log prompt as an artifact with metadata
-            with mlflow.start_run(run_name=f"register_prompt_{name}"):
-                mlflow.set_tag("prompt_name", name)
-                mlflow.set_tag("content_hash", content_hash)
-                
-                if description:
-                    mlflow.set_tag("description", description)
-                
-                if tags:
-                    mlflow.set_tags(tags)
-                
-                # Log the prompt content
-                mlflow.log_text(content, f"prompts/{name}.txt")
-                
-                run_id = mlflow.active_run().info.run_id
-                logger.info(f"Registered prompt '{name}' with hash {content_hash} (run: {run_id})")
-                
-                return content_hash
+            # Create a trace for tracking prompt registration
+            metadata = {
+                "prompt_name": name,
+                "content_hash": content_hash,
+                "content_length": len(content),
+            }
+            if description:
+                metadata["description"] = description
+            if tags:
+                metadata.update(tags)
+            
+            trace = self.client.trace(
+                name=f"prompt_register_{name}",
+                metadata=metadata,
+                input={"content": content},
+                tags=["prompt", "registration"],
+            )
+            
+            logger.info(f"Registered prompt '{name}' with hash {content_hash}")
+            self.client.flush()
+            
+            return content_hash
                 
         except Exception as e:
             logger.warning(f"Failed to register prompt '{name}': {e}")
@@ -85,7 +88,7 @@ class PromptRegistry:
     
     def sync_prompts_from_yaml(self, force: bool = False) -> Dict[str, str]:
         """
-        Sync all YAML prompts to MLflow Prompt Registry.
+        Sync all YAML prompts - logs registration to Langfuse.
         
         Args:
             force: Force re-registration even if content hasn't changed
@@ -101,7 +104,7 @@ class PromptRegistry:
                 # Load from YAML
                 content = load_prompt_from_yaml(name)
                 
-                # Register in MLflow
+                # Register/log in Langfuse
                 version = self.register_prompt(
                     name=name,
                     content=content,
@@ -127,28 +130,31 @@ class PromptRegistry:
         fallback_to_yaml: bool = True
     ) -> str:
         """
-        Load a prompt from MLflow Registry.
+        Load a prompt from Langfuse or fallback to YAML.
         
         Args:
             name: Prompt name
-            alias: Alias to load (e.g., "prod", "candidate", "staging")
-            fallback_to_yaml: If True, fall back to YAML if not found in registry
+            alias: Alias/label to load (e.g., "production", "latest")
+            fallback_to_yaml: If True, fall back to YAML if not found
         
         Returns:
             Prompt content
         """
-        if not self.enabled or fallback_to_yaml:
-            # For now, always fall back to YAML
-            # Full registry integration would query MLflow for the aliased version
+        if not self.enabled or not self.client:
             return load_prompt_from_yaml(name)
         
-        # TODO: Implement full registry lookup with aliases
-        # This would involve:
-        # 1. Query MLflow for runs with tag prompt_name=name and alias=alias
-        # 2. Download the prompt artifact
-        # 3. Return content
+        try:
+            # Try to fetch from Langfuse prompt management
+            prompt = self.client.get_prompt(name, label=alias)
+            if prompt:
+                return prompt.prompt
+        except Exception as e:
+            logger.debug(f"Prompt '{name}' not found in Langfuse, using YAML fallback: {e}")
         
-        return load_prompt_from_yaml(name)
+        if fallback_to_yaml:
+            return load_prompt_from_yaml(name)
+        
+        raise ValueError(f"Prompt '{name}' not found")
     
     def set_alias(
         self,
@@ -159,24 +165,35 @@ class PromptRegistry:
         """
         Set an alias for a prompt version.
         
+        Note: Langfuse prompt aliases (labels) are managed via the UI.
+        
         Args:
             name: Prompt name
             version_hash: Version hash to alias
-            alias: Alias name (e.g., "prod", "candidate")
+            alias: Alias name (e.g., "production", "staging")
         
         Returns:
-            True if successful
+            True if logged successfully
         """
-        if not self.enabled:
+        if not self.enabled or not self.client:
             return False
         
         try:
-            # This would be implemented with MLflow Model Registry
-            # or custom tagging system
-            logger.info(f"Set alias '{alias}' for prompt '{name}' version {version_hash}")
+            # Log alias assignment as a trace
+            self.client.trace(
+                name=f"prompt_alias_{name}",
+                metadata={
+                    "prompt_name": name,
+                    "version_hash": version_hash,
+                    "alias": alias,
+                },
+                tags=["prompt", "alias"],
+            )
+            logger.info(f"Logged alias '{alias}' for prompt '{name}' version {version_hash}")
+            self.client.flush()
             return True
         except Exception as e:
-            logger.warning(f"Failed to set alias: {e}")
+            logger.warning(f"Failed to log alias: {e}")
             return False
 
 

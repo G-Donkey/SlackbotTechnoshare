@@ -4,9 +4,9 @@ Ensures analysis results meet formatting and content requirements
 before posting to Slack.
 """
 
-from typing import List, Dict, Any, Union
+from typing import List
 from ..llm.schema import AnalysisResult
-from ..config import get_settings, load_project_context
+from ..config import get_settings
 
 settings = get_settings()
 
@@ -24,21 +24,8 @@ def run_quality_gates(result: AnalysisResult) -> List[str]:
     if len(result.tldr) != 3:
         failures.append(f"tldr must have exactly 3 sentences, got {len(result.tldr)}")
 
-    # 3. Theme mapping in projects
-    # Check if any project bullets contain a theme name from project_context
-    context = load_project_context()
-    themes = [t['name'] for t in context.get('themes', [])]
-    
-    match_count = 0
-    for bullet in result.projects:
-        # Each bullet should start with "**Theme:** <ThemeName>"
-        for t in themes:
-            if t in bullet:
-                match_count += 1
-                break
-    
-    if match_count < 2 and themes:
-        # We want at least 2 explicit theme mappings
-        failures.append(f"Project relevance insufficient: mapped {match_count} themes, need at least 2.")
+    # 3. Project bullets: minimum 3 bullets
+    if len(result.projects) < 3:
+        failures.append(f"Projects must have at least 3 bullets, got {len(result.projects)}")
             
     return failures
