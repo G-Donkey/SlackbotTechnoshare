@@ -1,25 +1,22 @@
 """Main pipeline orchestrator for processing Slack messages.
 
-Executes the 7-stage pipeline:
+Executes the 5-stage pipeline:
 1. URL extraction
 2. Evidence retrieval (via adapters)
-3. Stage A: Fact extraction (LLM)
-4. Stage B: Reply composition (LLM)
-5. Quality gates validation
-6. Slack posting
-7. Job completion
+3. Analysis (single LLM call)
+4. Quality gates validation
+5. Slack posting
 """
 
 import logging
 from ..store.repo import Repo
 from ..retrieval.url import extract_urls
 from ..retrieval.adapters import get_adapter
-from ..llm.stage_a import run_stage_a
-from ..llm.stage_b import run_stage_b
+from ..llm.analyze import run_analysis
 from ..quality.gates import run_quality_gates
 from ..config import load_project_context
 from ..slack.client import slack_client
-from ..pipeline.post_stage_b import post_stage_b_result
+from ..pipeline.post_analysis import post_analysis_result
 from ..mlops.tracking import tracker
 from ..mlops.tracing import tracer
 
@@ -92,56 +89,25 @@ class Pipeline:
                         )
                     
                     if evidence.coverage == "failed":
-                        logger.warning("Fetch failed or rejected by adapter. Proceeding to Stage A to attempt Search Tool recovery.")
+                        logger.warning("Fetch failed or rejected by adapter. Proceeding to analysis anyway.")
                 
-                # 3. Stage A (Facts) with tracing
-                with tracker.start_nested_run("stage_a", parent_run_id=run_id, tags={"stage": "stage_a"}) as stage_a_run_id:
-                    with tracer.span("stage_a.run", span_type="LLM"):
-                        facts, meta = run_stage_a(evidence, return_meta=True)
-                        
-                        # Log Stage A metadata
-                        tracker.set_tags({
-                            "model": meta.model,
-                            "tool_calls": ",".join(meta.tool_calls) if meta.tool_calls else "none",
-                        }, run_id=stage_a_run_id)
-                        
-                        tracker.log_metrics({
-                            "tool_call_count": len(meta.tool_calls),
-                            "source_count": len(meta.sources),
-                        }, run_id=stage_a_run_id)
-                        
-                        # Log facts artifact
-                        tracker.log_dict_artifact(
-                            facts.model_dump(),
-                            "stage_a_facts.json",
-                            run_id=stage_a_run_id
-                        )
-                        
-                        # Trace tool usage
-                        if meta.sources:
-                            tracker.log_text_artifact(
-                                "\n".join(meta.sources),
-                                "sources.txt",
-                                run_id=stage_a_run_id
-                            )
-                
-                # 4. Stage B (Compose) with tracing
+                # 3. Analysis (single LLM call) with tracing
                 context = load_project_context()
-                with tracker.start_nested_run("stage_b", parent_run_id=run_id, tags={"stage": "stage_b"}) as stage_b_run_id:
-                    with tracer.span("stage_b.run", span_type="LLM"):
-                        reply_data = run_stage_b(facts, context)
+                with tracker.start_nested_run("analysis", parent_run_id=run_id, tags={"stage": "analysis"}) as analysis_run_id:
+                    with tracer.span("analysis.run", span_type="LLM"):
+                        result = run_analysis(evidence, context)
                         
-                        # Log Stage B artifact
+                        # Log analysis artifact
                         tracker.log_dict_artifact(
-                            reply_data.model_dump(),
-                            "stage_b_result.json",
-                            run_id=stage_b_run_id
+                            result.model_dump(),
+                            "analysis_result.json",
+                            run_id=analysis_run_id
                         )
                 
-                # 5. Quality Gates with tracing
+                # 4. Quality Gates with tracing
                 with tracker.start_nested_run("quality_gates", parent_run_id=run_id, tags={"stage": "quality_gates"}) as gates_run_id:
                     with tracer.span("quality_gates.validate", span_type="CHAIN"):
-                        failures = run_quality_gates(reply_data)
+                        failures = run_quality_gates(result)
                         
                         tracker.log_metrics({
                             "gate_failures": len(failures),
@@ -164,10 +130,10 @@ class Pipeline:
                             Repo.mark_job_failed(job_id, error_msg)
                             return
 
-                # 6-7. Validate, render and post via Block Kit
+                # 5. Validate, render and post via Block Kit
                 with tracker.start_nested_run("slack_post", parent_run_id=run_id, tags={"stage": "slack_post"}) as post_run_id:
                     with tracer.span("slack.post_message", span_type="CHAIN"):
-                        payload = post_stage_b_result(channel=channel_id, thread_ts=message_ts, result=reply_data)
+                        payload = post_analysis_result(channel=channel_id, thread_ts=message_ts, result=result)
                         
                         # Log Slack payload
                         tracker.log_dict_artifact(
@@ -176,7 +142,7 @@ class Pipeline:
                             run_id=post_run_id
                         )
                 
-                # 8. Mark Done
+                # Mark Done
                 Repo.mark_job_done(job_id)
                 tracker.set_tags({"outcome": "success"}, run_id=run_id)
                 logger.info("Job completed successfully.")

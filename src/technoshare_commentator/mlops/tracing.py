@@ -43,7 +43,7 @@ class MLflowTracer:
         Create a traced span for an operation.
         
         Args:
-            name: Name of the span (e.g., "stage_a.run", "retrieval.fetch")
+            name: Name of the span (e.g., "analysis.run", "retrieval.fetch")
             span_type: Type of span (e.g., "LLM", "RETRIEVER", "CHAIN", "TOOL")
             attributes: Additional metadata for the span
             inputs: Input data to the operation

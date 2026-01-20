@@ -42,6 +42,10 @@ class MLflowTracker:
         else:
             logger.info("MLflow tracking disabled")
     
+    def _sanitize_tags(self, tags: Dict[str, Any]) -> Dict[str, str]:
+        """Ensure all tag values are strings (MLflow requirement)."""
+        return {k: str(v) for k, v in tags.items() if v is not None}
+    
     @contextmanager
     def start_job_run(
         self,
@@ -69,6 +73,9 @@ class MLflowTracker:
             run_tags["target_url"] = target_url
         if tags:
             run_tags.update(tags)
+        
+        # MLflow requires all tag values to be strings
+        run_tags = self._sanitize_tags(run_tags)
         
         run = mlflow.start_run(run_name=f"job_{job_id}", tags=run_tags)
         run_id = run.info.run_id
@@ -100,7 +107,8 @@ class MLflowTracker:
             return
         
         # Parent run is already active, just start nested run directly
-        with mlflow.start_run(run_name=run_name, nested=True, tags=tags or {}) as nested_run:
+        sanitized_tags = self._sanitize_tags(tags) if tags else {}
+        with mlflow.start_run(run_name=run_name, nested=True, tags=sanitized_tags) as nested_run:
             start_time = time.time()
             try:
                 yield nested_run.info.run_id
@@ -174,7 +182,7 @@ class MLflowTracker:
         
         try:
             # Don't re-enter run if already active, just set directly
-            mlflow.set_tags(tags)
+            mlflow.set_tags(self._sanitize_tags(tags))
         except Exception as e:
             logger.warning(f"Failed to set tags: {e}")
 

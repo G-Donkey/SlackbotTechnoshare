@@ -1,12 +1,12 @@
 """
-Scorers for evaluating Stage B output quality.
+Scorers for evaluating analysis output quality.
 Implements both hard checks (deterministic) and soft checks (LLM-based).
 """
 import logging
 from typing import Dict, Any, List, Callable
 from pydantic import BaseModel, Field
 
-from ...llm.stage_b_schema import StageBResult
+from ...llm.schema import AnalysisResult
 from ...quality.sentence import count_sentences_naive
 
 logger = logging.getLogger(__name__)
@@ -48,8 +48,8 @@ class HardCheckScorers:
     """Collection of deterministic hard check scorers."""
     
     @staticmethod
-    def schema_validity(result: StageBResult) -> ScoreResult:
-        """Check if result conforms to StageBResult schema."""
+    def schema_validity(result: AnalysisResult) -> ScoreResult:
+        """Check if result conforms to AnalysisResult schema."""
         try:
             # If we got here, schema is valid (Pydantic already validated)
             return ScoreResult(
@@ -67,7 +67,7 @@ class HardCheckScorers:
             )
     
     @staticmethod
-    def tldr_sentence_count(result: StageBResult) -> ScoreResult:
+    def tldr_sentence_count(result: AnalysisResult) -> ScoreResult:
         """Check if TLDR has exactly 3 sentences."""
         count = len(result.tldr)  # TLDR is already a list of sentences
         passed = count == 3
@@ -79,24 +79,24 @@ class HardCheckScorers:
         )
     
     @staticmethod
-    def summary_sentence_count(result: StageBResult) -> ScoreResult:
-        """Check if Summary has 10-15 sentences."""
-        count = len(result.summary)  # Summary is already a list of sentences
-        passed = 10 <= count <= 15
+    def summary_length(result: AnalysisResult) -> ScoreResult:
+        """Check if Summary has sufficient length (min 100 chars)."""
+        length = len(result.summary)
+        passed = length >= 100
         return ScoreResult(
-            name="summary_sentence_count",
+            name="summary_length",
             score=1.0 if passed else 0.0,
             passed=passed,
-            details=f"Summary has {count} sentences (expected 10-15)"
+            details=f"Summary has {length} characters (minimum 100)"
         )
     
     @staticmethod
-    def slack_formatting(result: StageBResult) -> ScoreResult:
+    def slack_formatting(result: AnalysisResult) -> ScoreResult:
         """Check if output follows Slack formatting rules."""
-        from ...rendering.slack_format import render_stage_b_to_slack
+        from ...rendering.slack_format import render_analysis_to_slack
         
         try:
-            text = render_stage_b_to_slack(result)
+            text = render_analysis_to_slack(result)
             
             # Check for section separators (two blank lines)
             sections = text.split('\n\n\n')
@@ -125,7 +125,7 @@ class HardCheckScorers:
             )
     
     @staticmethod
-    def projects_theme_prefix(result: StageBResult) -> ScoreResult:
+    def projects_theme_prefix(result: AnalysisResult) -> ScoreResult:
         """Check if Projects bullets have '**Theme** — ' format."""
         if not result.projects:
             return ScoreResult(
@@ -153,14 +153,14 @@ class HardCheckScorers:
         )
 
 
-def run_hard_checks(result: StageBResult) -> EvalScores:
+def run_hard_checks(result: AnalysisResult) -> EvalScores:
     """Run all hard check scorers on a result."""
     scores = EvalScores()
     
     scorers = [
         HardCheckScorers.schema_validity,
         HardCheckScorers.tldr_sentence_count,
-        HardCheckScorers.summary_sentence_count,
+        HardCheckScorers.summary_length,
         HardCheckScorers.slack_formatting,
         HardCheckScorers.projects_theme_prefix,
     ]

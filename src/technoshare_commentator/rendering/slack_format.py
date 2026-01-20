@@ -1,6 +1,6 @@
 """Slack mrkdwn formatting for LLM outputs.
 
-Converts Stage B results to Slack-compatible mrkdwn with proper
+Converts analysis results to Slack-compatible mrkdwn with proper
 bold, lists, and section formatting.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import List
 
-from technoshare_commentator.llm.stage_b_schema import StageBResult
+from technoshare_commentator.llm.schema import AnalysisResult
 
 # Convert Markdown **bold** -> Slack *bold*
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
@@ -39,17 +39,17 @@ def _numbered_list(lines: List[str]) -> str:
     return "\n".join(f"{i+1}) {s}" for i, s in enumerate(clean))
 
 
-def render_stage_b_to_markdown(result: StageBResult) -> str:
+def render_analysis_to_markdown(result: AnalysisResult) -> str:
     """
     Clean, scannable Markdown layout:
       - tldr: bullets
-      - Summary: numbered lines
+      - Summary: paragraph text
       - Projects: bullets
       - Similar tech: bullets or N/A
     Two blank lines between main sections (=> 3 newlines).
     """
     tldr_block = "**tldr**\n" + _bullet_list(result.tldr)
-    summary_block = "**Summary**\n" + _numbered_list(result.summary)
+    summary_block = "**Summary**\n" + result.summary.strip()
     projects_block = "**Projects**\n" + _bullet_list(result.projects)
 
     if result.similar_tech:
@@ -61,9 +61,9 @@ def render_stage_b_to_markdown(result: StageBResult) -> str:
     return section_sep.join([tldr_block, summary_block, projects_block, similar_block])
 
 
-def render_stage_b_to_slack(result: StageBResult) -> str:
+def render_analysis_to_slack(result: AnalysisResult) -> str:
     """
-    End-to-end: StageBResult -> Slack mrkdwn text.
+    End-to-end: AnalysisResult -> Slack mrkdwn text.
     """
-    md = render_stage_b_to_markdown(result)
+    md = render_analysis_to_markdown(result)
     return markdown_to_slack_mrkdwn(md)

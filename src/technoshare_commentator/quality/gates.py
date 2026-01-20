@@ -1,30 +1,30 @@
 """Quality gate validation for LLM outputs.
 
-Ensures Stage B results meet formatting and content requirements
+Ensures analysis results meet formatting and content requirements
 before posting to Slack.
 """
 
-from typing import List, Dict, Any
-from ..llm.stage_b_schema import StageBResult
+from typing import List, Dict, Any, Union
+from ..llm.schema import AnalysisResult
 from ..config import get_settings, load_project_context
 
 settings = get_settings()
 
-def run_quality_gates(result: StageBResult) -> List[str]:
+def run_quality_gates(result: AnalysisResult) -> List[str]:
     """
     Returns list of failure reasons. Empty list = pass.
     """
     failures = []
     
-    # 1. Summary: 10-15 sentences (enforced by Pydantic, but double-check)
-    if not (10 <= len(result.summary) <= 15):
-        failures.append(f"Summary must have 10-15 sentences, got {len(result.summary)}")
+    # 1. Summary: minimum 100 characters (enforced by Pydantic, but double-check)
+    if len(result.summary) < 100:
+        failures.append(f"Summary must be at least 100 characters, got {len(result.summary)}")
     
     # 2. tldr: exactly 3 sentences (enforced by Pydantic, but double-check)
     if len(result.tldr) != 3:
         failures.append(f"tldr must have exactly 3 sentences, got {len(result.tldr)}")
 
-    # 4. Theme mapping in projects
+    # 3. Theme mapping in projects
     # Check if any project bullets contain a theme name from project_context
     context = load_project_context()
     themes = [t['name'] for t in context.get('themes', [])]

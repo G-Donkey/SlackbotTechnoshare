@@ -45,7 +45,7 @@ class PromptRegistry:
         Register a prompt in MLflow.
         
         Args:
-            name: Prompt name (e.g., "stage_a_extract_facts")
+            name: Prompt name (e.g., "analyze")
             content: Prompt template content
             description: Human-readable description
             tags: Additional metadata tags
@@ -93,7 +93,7 @@ class PromptRegistry:
         Returns:
             Dict mapping prompt names to version hashes
         """
-        prompt_names = ["stage_a_extract_facts", "stage_b_compose_reply"]
+        prompt_names = ["analyze"]  # Single-stage analysis prompt
         results = {}
         
         for name in prompt_names:
@@ -106,7 +106,7 @@ class PromptRegistry:
                     name=name,
                     content=content,
                     description=f"Prompt for {name}",
-                    tags={"source": "yaml", "stage": name.split("_")[1]}
+                    tags={"source": "yaml", "stage": "analysis"}
                 )
                 
                 if version:

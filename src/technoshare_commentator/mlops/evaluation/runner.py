@@ -11,7 +11,7 @@ import mlflow
 from .dataset import EvalDataset, EvalExample, load_or_create_dataset
 from .scorers import run_hard_checks, EvalScores
 from ...pipeline.run import Pipeline
-from ...llm.stage_b_schema import StageBResult
+from ...llm.schema import AnalysisResult
 from ...config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -27,18 +27,16 @@ class EvalRunner:
         self.dataset = load_or_create_dataset(dataset_path)
         self.pipeline = Pipeline()
     
-    def run_example(self, example: EvalExample) -> tuple[Optional[StageBResult], EvalScores]:
+    def run_example(self, example: EvalExample) -> tuple[Optional[AnalysisResult], EvalScores]:
         """
         Run a single evaluation example.
         Returns the result and scores.
         """
         try:
             # For evaluation, we need to simulate the pipeline without actually posting to Slack
-            # This is a simplified version - you may want to refactor pipeline to support this
             from ...retrieval.url import extract_urls
             from ...retrieval.adapters import get_adapter
-            from ...llm.stage_a import run_stage_a
-            from ...llm.stage_b import run_stage_b
+            from ...llm.analyze import run_analysis
             from ...config import load_project_context
             
             # Extract URL
@@ -53,12 +51,9 @@ class EvalRunner:
             adapter = get_adapter(target_url)
             evidence = adapter.fetch_evidence(target_url)
             
-            # Stage A
-            facts = run_stage_a(evidence)
-            
-            # Stage B
+            # Single-stage analysis
             context = load_project_context()
-            result = run_stage_b(facts, context)
+            result = run_analysis(evidence, context)
             
             # Score the result
             scores = run_hard_checks(result)

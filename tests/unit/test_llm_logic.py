@@ -1,12 +1,12 @@
+"""Tests for LLM analysis logic."""
+
 import pytest
 from unittest.mock import MagicMock, patch
-from technoshare_commentator.llm.stage_a import run_stage_a
-from technoshare_commentator.llm.stage_b import run_stage_b
+from technoshare_commentator.llm.analyze import run_analysis
+from technoshare_commentator.llm.schema import AnalysisResult
 from technoshare_commentator.schemas.evidence import EvidencePack, EvidenceSource, EvidenceSnippet
-from technoshare_commentator.schemas.outputs import StageAResult, KeyFact
-from technoshare_commentator.llm.stage_b_schema import StageBResult
 
-# Sample Data Fixtures
+
 @pytest.fixture
 def sample_evidence():
     return EvidencePack(
@@ -15,98 +15,59 @@ def sample_evidence():
         coverage="full"
     )
 
-@pytest.fixture
-def sample_facts():
-    return StageAResult(
-        key_facts=[KeyFact(fact="Python 4.0 is out", supported_by_snippet_ids=[1])],
-        unknowns=[],
-        coverage_assessment="full"
-    )
 
-def test_stage_a_fact_extraction(sample_evidence):
+@pytest.fixture
+def sample_project_context():
+    return {"themes": [{"name": "AI Ops"}, {"name": "Cloud Native"}]}
+
+
+def test_analysis_runs_with_evidence_and_context(sample_evidence, sample_project_context):
     """
-    WHY: Verify that Stage A correctly sends evidence to the LLM and parses the structural result.
-    HOW: Mock `llm_client.run_with_tools` to return a valid response with `StageAResult`.
+    WHY: Verify that run_analysis correctly sends evidence + context to the LLM.
+    HOW: Mock `llm_client.run_structured` to return a valid `AnalysisResult`.
     EXPECTED: The function should return the mock result without error.
     """
-    from technoshare_commentator.llm.client import llm_client, RunResponse, RunMeta
+    from technoshare_commentator.llm.client import llm_client
     
-    # Create the expected output object
-    expected_output = StageAResult(
-        key_facts=[KeyFact(fact="Python 4.0 released", supported_by_snippet_ids=[1])],
-        unknowns=[],
-        coverage_assessment="full"
+    expected_output = AnalysisResult(
+        tldr=["Python 4.0 is revolutionary.", "It features async everywhere.", "Breaking changes expected."],
+        summary="Python 4.0 brings revolutionary changes to the language. It features async everywhere as a core concept. The new release includes breaking changes that developers should expect. Performance improvements are significant across all benchmarks. The migration path is well documented.",
+        projects=[
+            "**AI Ops** — Migrate to Python 4.0 for async benefits.",
+            "**Cloud Native** — Leverage new deployment features.",
+            "**General** — Update existing codebases.",
+        ],
+        similar_tech=["**Rust** — faster but more complex."],
     )
     
-    # Mock returns RunResponse with parsed and meta
-    mock_response = RunResponse(
-        parsed=expected_output,
-        meta=RunMeta(tool_calls=[], sources=[], model="gpt-4o")
-    )
-    
-    # We patch the instance method on the imported client object
-    with patch.object(llm_client, 'run_with_tools', return_value=mock_response) as mock_run:
-        result = run_stage_a(sample_evidence)
+    with patch.object(llm_client, 'run_structured', return_value=expected_output) as mock_run:
+        result = run_analysis(sample_evidence, sample_project_context)
         
         # Check call arguments
         mock_run.assert_called_once()
         call_args = mock_run.call_args
         prompt_arg = call_args[0][0]
         
-        # Verify prompt injection
-        assert "# EvidencePack" in prompt_arg
+        # Verify prompt contains evidence and context
+        assert "# Evidence" in prompt_arg
         assert "Python 4.0 released today" in prompt_arg
+        assert "# ProjectContext" in prompt_arg
+        assert "AI Ops" in prompt_arg
         
-        # Verify Return
+        # Verify return
         assert result == expected_output
-        assert result.key_facts[0].fact == "Python 4.0 released"
-
-def test_stage_b_composition(sample_facts):
-    """
-    WHY: Verify that Stage B correctly takes facts + context and generates the strictly formatted Slack reply.
-    HOW: Mock `llm_client.run_structured` to return a valid `StageBResult`. Pass fake project context.
-    EXPECTED: 
-        1. Prompt contains facts and the YAML context.
-        2. Returns the structured StageBResult.
-    """
-    from technoshare_commentator.llm.client import llm_client
-    
-    project_context = {"themes": [{"name": "AI Ops"}]}
-    
-    expected_output = StageBResult(
-        tldr=["Python 4.0 is revolutionary.", "It features async everywhere.", "Breaking changes expected."],
-        summary=["S1.", "S2.", "S3.", "S4.", "S5.", "S6.", "S7.", "S8.", "S9.", "S10."],
-        projects=[
-            "**AI Ops** — Relevance point 1",
-            "**Cloud Native** — Point 2",
-            "**Data Engineering** — Point 3"
-        ],
-        similar_tech=["Rust async runtime - faster but more complex."],
-    )
-    
-    with patch.object(llm_client, 'run_structured', return_value=expected_output) as mock_run:
-        result = run_stage_b(sample_facts, project_context)
-        
-        # Verify Prompt
-        prompt = mock_run.call_args[0][0]
-        assert "# KeyFacts" in prompt
-        assert "Python 4.0 is out" in prompt
-        assert "# ProjectContext" in prompt
-        assert "AI Ops" in prompt
-        
-        assert len(result.summary) == 10
         assert len(result.tldr) == 3
+        assert len(result.summary) >= 100  # summary is now a string with min 100 chars
 
-def test_llm_malformed_response_retry(sample_evidence):
+
+def test_llm_malformed_response_propagates_error(sample_evidence, sample_project_context):
     """
-    WHY: LLMs sometimes fail to return valid JSON matching the schema. Our client (beta.parse) usually handles this, 
-         but if it raises an error, we want to know it propagates or is handled.
-    HOW: Mock `run_structured` to raise an OpenAI API error or Pydantic validation error.
-    EXPECTED: The function should raise the exception (so the worker can retry later) or handle it.
-              Current implementation assumes `client.py` handles retries or propagates. We verify propagation here.
+    WHY: LLMs sometimes fail to return valid JSON. We want errors to propagate.
+    HOW: Mock `run_structured` to raise an error.
+    EXPECTED: The function should raise the exception (so the worker can retry later).
     """
     from technoshare_commentator.llm.client import llm_client
     
-    with patch.object(llm_client, 'run_with_tools', side_effect=ValueError("Invalid JSON")):
+    with patch.object(llm_client, 'run_structured', side_effect=ValueError("Invalid JSON")):
         with pytest.raises(ValueError):
-            run_stage_a(sample_evidence)
+            run_analysis(sample_evidence, sample_project_context)

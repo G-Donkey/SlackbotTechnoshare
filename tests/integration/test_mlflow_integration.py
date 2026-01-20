@@ -165,7 +165,7 @@ class TestEvaluationIntegration:
         """Test running evaluation on a small dataset."""
         from technoshare_commentator.mlops.evaluation.dataset import EvalDataset, EvalExample
         from technoshare_commentator.mlops.evaluation.scorers import run_hard_checks
-        from technoshare_commentator.llm.stage_b_schema import StageBResult
+        from technoshare_commentator.llm.schema import AnalysisResult
         
         # Create test dataset
         dataset = EvalDataset(name="test", version="1.0")
@@ -177,11 +177,11 @@ class TestEvaluationIntegration:
         ))
         
         # Create test result
-        result = StageBResult(
-            tldr="Test TLDR. With three sentences. All good.",
-            summary="Test summary. " * 12,
-            projects=["Theme: Test project"],
-            similar_tech=["Tech 1"]
+        result = AnalysisResult(
+            tldr=["Test TLDR sentence one.", "With three sentences total.", "All is good here."],
+            summary="This is a comprehensive test summary paragraph with sufficient length. It covers multiple aspects of the content being analyzed. The technology presents interesting possibilities. Performance metrics show improvements over baseline. Overall a valuable addition to our toolkit.",
+            projects=["**Test** — project one", "**Theme** — project two", "**Other** — project three"],
+            similar_tech=["**Tech 1** — first tech."]
         )
         
         # Run scorers

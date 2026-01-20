@@ -312,15 +312,15 @@ python scripts/run_pipeline_on_latest.py
                      │ process_job()
                      ▼
           ┌──────────────────────┐
-          │  pipeline/run.py     │  7-stage pipeline:
+          │  pipeline/run.py     │  5-stage pipeline:
           │  (Orchestrator)      │  • Extract URL
           └──────────┬───────────┘  • Fetch evidence
-                     │              • Stage A (facts)
-                     │              • Stage B (reply)
+                     │              • Analysis (LLM)
                      │              • Quality gates
+                     │              • Slack posting
                      ▼
           ┌──────────────────────┐
-          │  post_stage_b.py     │  Render to mrkdwn
+          │  post_analysis.py    │  Render to mrkdwn
           │  (Formatter)         │  Build payload
           └──────────┬───────────┘
                      │

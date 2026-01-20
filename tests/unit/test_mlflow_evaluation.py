@@ -3,7 +3,7 @@ import pytest
 from pathlib import Path
 from technoshare_commentator.mlops.evaluation.dataset import EvalExample, EvalDataset
 from technoshare_commentator.mlops.evaluation.scorers import HardCheckScorers, run_hard_checks
-from technoshare_commentator.llm.stage_b_schema import StageBResult
+from technoshare_commentator.llm.schema import AnalysisResult
 
 
 class TestEvalDataset:
@@ -91,13 +91,16 @@ class TestEvalDataset:
 class TestHardCheckScorers:
     """Tests for hard check scorers."""
     
+    # Helper to create valid summary text
+    VALID_SUMMARY = "This is a comprehensive summary paragraph with multiple sentences. It covers the key points of the content being analyzed. The technology offers significant benefits over existing solutions. Performance benchmarks show measurable improvements in key metrics. Overall it represents a meaningful step forward in the field."
+    
     def test_schema_validity_valid(self):
         """Test schema validity scorer with valid result."""
-        result = StageBResult(
+        result = AnalysisResult(
             tldr=["This is a test.", "It has three sentences.", "All good."],
-            summary=["This is a summary."] * 10,
+            summary=self.VALID_SUMMARY,
             projects=["**AI/ML** — Test project", "**Cloud** — Another project", "**DevOps** — Third project"],
-            similar_tech=["Tech 1", "Tech 2"]
+            similar_tech=["**Tech 1** — First tech.", "**Tech 2** — Second tech."]
         )
         
         score = HardCheckScorers.schema_validity(result)
@@ -107,11 +110,11 @@ class TestHardCheckScorers:
     
     def test_tldr_sentence_count_correct(self):
         """Test TLDR sentence count scorer with 3 sentences."""
-        result = StageBResult(
+        result = AnalysisResult(
             tldr=["First sentence.", "Second sentence.", "Third sentence."],
-            summary=["Summary."] * 10,
+            summary=self.VALID_SUMMARY,
             projects=["**Test** — project", "**Another** — item", "**Third** — thing"],
-            similar_tech=["Tech"]
+            similar_tech=["**Tech** — description."]
         )
         
         score = HardCheckScorers.tldr_sentence_count(result)
@@ -125,11 +128,11 @@ class TestHardCheckScorers:
         # Note: This will fail validation, but we're testing the scorer logic
         # In real usage, this would be caught by Pydantic first
         try:
-            result = StageBResult(
+            result = AnalysisResult(
                 tldr=["Only two sentences.", "Here they are."],  # Will fail validation
-                summary=["Summary."] * 10,
+                summary=self.VALID_SUMMARY,
                 projects=["**Test** — proj", "**A** — b", "**C** — d"],
-                similar_tech=["Tech"]
+                similar_tech=["**Tech** — x."]
             )
         except Exception:
             # Expected - schema validation catches this
@@ -141,46 +144,27 @@ class TestHardCheckScorers:
         score = HardCheckScorers.tldr_sentence_count(result)
         assert score.passed is False
     
-    def test_summary_sentence_count_in_range(self):
-        """Test summary sentence count scorer within range."""
-        result = StageBResult(
+    def test_summary_length_valid(self):
+        """Test summary length scorer with sufficient length."""
+        result = AnalysisResult(
             tldr=["Test.", "Test.", "Test."],
-            summary=["Sentence."] * 12,  # 12 sentences (in range 10-15)
+            summary=self.VALID_SUMMARY,  # > 100 chars
             projects=["**Test** — a", "**B** — c", "**D** — e"],
-            similar_tech=["Tech"]
+            similar_tech=["**Tech** — x."]
         )
         
-        score = HardCheckScorers.summary_sentence_count(result)
+        score = HardCheckScorers.summary_length(result)
         
         assert score.passed is True
         assert score.score == 1.0
     
-    def test_summary_sentence_count_out_of_range(self):
-        """Test summary sentence count scorer out of range."""
-        # Note: This will fail validation, but we're testing scorer logic
-        try:
-            result = StageBResult(
-                tldr=["Test.", "Test.", "Test."],
-                summary=["Sentence."] * 5,  # 5 sentences (below range - will fail validation)
-                projects=["**Test** — a", "**B** — c", "**D** — e"],
-                similar_tech=["Tech"]
-            )
-        except Exception:
-            # Expected - schema validation catches this
-            assert True
-            return
-        
-        # If somehow we get here, test the scorer
-        score = HardCheckScorers.summary_sentence_count(result)
-        assert score.passed is False
-    
     def test_projects_theme_prefix_present(self):
         """Test projects theme prefix scorer with correct format."""
-        result = StageBResult(
+        result = AnalysisResult(
             tldr=["Test.", "Test.", "Test."],
-            summary=["Summary."] * 10,
+            summary=self.VALID_SUMMARY,
             projects=["**AI/ML** — Project 1", "**Cloud** — Project 2", "**DevOps** — Project 3"],
-            similar_tech=["Tech"]
+            similar_tech=["**Tech** — description."]
         )
         
         score = HardCheckScorers.projects_theme_prefix(result)
@@ -192,11 +176,11 @@ class TestHardCheckScorers:
         """Test projects theme prefix scorer with missing format."""
         # Note: This will fail validation, but we're testing scorer logic
         try:
-            result = StageBResult(
+            result = AnalysisResult(
                 tldr=["Test.", "Test.", "Test."],
-                summary=["Summary."] * 10,
+                summary=self.VALID_SUMMARY,
                 projects=["Project without prefix", "**Theme** — Project 2", "**Another** — one"],
-                similar_tech=["Tech"]
+                similar_tech=["**Tech** — description."]
             )
         except Exception:
             # Expected - schema validation catches this
@@ -209,11 +193,11 @@ class TestHardCheckScorers:
     
     def test_projects_theme_prefix_all_valid(self):
         """Test projects theme prefix scorer with minimum projects."""
-        result = StageBResult(
+        result = AnalysisResult(
             tldr=["Test.", "Test.", "Test."],
-            summary=["Summary."] * 10,
+            summary=self.VALID_SUMMARY,
             projects=["**A** — one", "**B** — two", "**C** — three"],
-            similar_tech=["Tech"]
+            similar_tech=["**Tech** — description."]
         )
         
         score = HardCheckScorers.projects_theme_prefix(result)
@@ -223,11 +207,11 @@ class TestHardCheckScorers:
     
     def test_run_hard_checks(self):
         """Test running all hard checks."""
-        result = StageBResult(
+        result = AnalysisResult(
             tldr=["First sentence.", "Second sentence.", "Third sentence."],
-            summary=["This is a longer summary."] * 12,
+            summary=self.VALID_SUMMARY,
             projects=["**AI/ML** — consulting", "**Cloud** — migration", "**DevOps** — automation"],
-            similar_tech=["Tech 1", "Tech 2"]
+            similar_tech=["**Tech 1** — first.", "**Tech 2** — second."]
         )
         
         scores = run_hard_checks(result)
@@ -239,11 +223,11 @@ class TestHardCheckScorers:
     def test_run_hard_checks_with_failures(self):
         """Test running hard checks - schema validation prevents bad data."""
         # Note: Pydantic validation happens before scorers, so we test with valid data
-        result = StageBResult(
+        result = AnalysisResult(
             tldr=["First.", "Second.", "Third."],
-            summary=["Summary."] * 10,
+            summary=self.VALID_SUMMARY,
             projects=["**Test** — a", "**B** — b", "**C** — c"],
-            similar_tech=["Tech"]
+            similar_tech=["**Tech** — description."]
         )
         
         scores = run_hard_checks(result)

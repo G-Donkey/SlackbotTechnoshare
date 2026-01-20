@@ -18,8 +18,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(..., description="OpenAI API Key")
     DB_PATH: str = Field("./db.sqlite", description="Path to SQLite database")
     MAX_LINKS_PER_MESSAGE: int = 3
-    MODEL_STAGE_A: str = "gpt-4o"
-    MODEL_STAGE_B: str = "gpt-4o"
+    MODEL: str = Field("gpt-4o", description="LLM model for analysis (env has priority)")
     LOG_LEVEL: str = "INFO"
     
     # MLflow settings

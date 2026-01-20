@@ -62,25 +62,19 @@ export MLFLOW_ENABLE_TRACING=false
 │    └─────────────────────────────────────────────────────────┘│
 │                              ↓                                 │
 │    ┌─────────────────────────────────────────────────────────┐│
-│    │  2. STAGE A (Extract Facts)                            ││
-│    │     tracer.span("stage_a.run", span_type="LLM")       ││
-│    │     → logs: model, tool_calls, sources                 ││
+│    │  2. ANALYSIS (Single LLM Call)                         ││
+│    │     tracer.span("analysis.run", span_type="LLM")      ││
+│    │     → logs: model, output structure                    ││
 │    └─────────────────────────────────────────────────────────┘│
 │                              ↓                                 │
 │    ┌─────────────────────────────────────────────────────────┐│
-│    │  3. STAGE B (Compose Reply)                            ││
-│    │     tracer.span("stage_b.run", span_type="LLM")       ││
-│    │     → logs: output structure                           ││
-│    └─────────────────────────────────────────────────────────┘│
-│                              ↓                                 │
-│    ┌─────────────────────────────────────────────────────────┐│
-│    │  4. QUALITY GATES                                      ││
+│    │  3. QUALITY GATES                                      ││
 │    │     tracer.span("quality_gates.validate")             ││
 │    │     → logs: gate_failures, gate_passed                 ││
 │    └─────────────────────────────────────────────────────────┘│
 │                              ↓                                 │
 │    ┌─────────────────────────────────────────────────────────┐│
-│    │  5. SLACK POST                                         ││
+│    │  4. SLACK POST                                         ││
 │    │     tracer.span("slack.post_message")                 ││
 │    │     → logs: payload                                    ││
 │    └─────────────────────────────────────────────────────────┘│
@@ -93,8 +87,7 @@ export MLFLOW_ENABLE_TRACING=false
 │                                                                 │
 │   Backend Store (SQLite)     │     Artifact Store (Local)      │
 │   • Runs, params, metrics    │     • evidence.json             │
-│   • Tags, traces             │     • stage_a_facts.json        │
-│                              │     • stage_b_result.json       │
+│   • Tags, traces             │     • analysis_result.json      │
 │                              │     • slack_payload.json        │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -118,8 +111,7 @@ Each job creates nested runs for each stage:
 ```
 job_xyz123 (parent)
 ├── retrieval (adapter, coverage, snippets)
-├── stage_a (model, tools, sources)
-├── stage_b (output structure)
+├── analysis (model, output structure)
 ├── quality_gates (pass/fail counts)
 └── slack_post (payload)
 ```
