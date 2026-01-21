@@ -14,7 +14,7 @@ sequenceDiagram
     participant DB as SQLite Queue
     participant Worker as Job Worker<br/>(main_worker.py)
     participant Pipeline as 5-Stage Pipeline
-    participant LLM as GPT-4o API
+    participant LLM as gpt-5.2 API
     
     User->>Slack: Posts message with URL
     Slack->>Listener: WebSocket event push
@@ -140,7 +140,7 @@ graph TB
     subgraph Pipeline["📦 5-Stage Pipeline"]
         S1[Stage 1: URL Extraction]
         S2[Stage 2: Content Retrieval<br/>httpx + trafilatura]
-        S3[Stage 3: LLM Analysis<br/>GPT-4o]
+        S3[Stage 3: LLM Analysis<br/>gpt-5.2]
         S4[Stage 4: Quality Gates<br/>Pydantic validation]
         S5[Stage 5: Slack Posting<br/>Block Kit]
     end

@@ -43,7 +43,7 @@ class TestLangfuseTracer:
         tracer = LangfuseTracer()
         
         # These should not raise
-        tracer.trace_llm_call("gpt-4o", "prompt", "response")
+        tracer.trace_llm_call("gpt-5.2", "prompt", "response")
         tracer.trace_retrieval("https://example.com", "GenericAdapter", "full", 5)
         tracer.trace_quality_gates([], 5)
         tracer.flush()

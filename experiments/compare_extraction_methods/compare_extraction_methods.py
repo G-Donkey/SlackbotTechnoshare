@@ -168,7 +168,7 @@ def method_A_html_to_llm(url: str) -> ExperimentResult:
         # run_analysis returns AnalysisResult (Pydantic model)
         result_dict = analysis_result.model_dump()
         
-        # Calculate cost (GPT-4o pricing: $2.50/1M input, $10/1M output)
+        # Calculate cost (gpt-5.2 pricing: $2.50/1M input, $10/1M output)
         input_tokens = len(text) // 4  # Rough estimate: 1 token ≈ 4 chars
         output_tokens = len(json.dumps(result_dict)) // 4
         

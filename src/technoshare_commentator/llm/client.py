@@ -50,7 +50,7 @@ class LLMClient:
         else:
             self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-    def run_structured(self, prompt: str, schema_model: type, model: str = "gpt-4o"):
+    def run_structured(self, prompt: str, schema_model: type, model: str = "gpt-5.2"):
         completion = self.client.beta.chat.completions.parse(
             model=model,
             messages=[
@@ -60,7 +60,7 @@ class LLMClient:
         )
         return completion.choices[0].message.parsed
 
-    def run_with_tools(self, prompt: str, schema_model: type[T], model: str = "gpt-4o", return_meta: bool = False) -> Union[T, RunResponse[T]]:
+    def run_with_tools(self, prompt: str, schema_model: type[T], model: str = "gpt-5.2", return_meta: bool = False) -> Union[T, RunResponse[T]]:
         """
         Run a completion with tool-calling capabilities.
         If return_meta=True, returns RunResponse[T] with metadata.

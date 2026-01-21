@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(..., description="OpenAI API Key")
     DB_PATH: str = Field("./db.sqlite", description="Path to SQLite database")
     MAX_LINKS_PER_MESSAGE: int = 3
-    MODEL: str = Field("gpt-4o", description="LLM model for analysis (env has priority)")
+    MODEL: str = Field("gpt-5.2", description="LLM model for analysis (env has priority)")
     LOG_LEVEL: str = "INFO"
     
     # Langfuse settings

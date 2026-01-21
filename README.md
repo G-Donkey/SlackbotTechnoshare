@@ -85,20 +85,20 @@ Fetches web content and extracts clean, readable text for LLM analysis.
 
 **Example:**
 ```
-Input URL: https://openai.com/blog/gpt-4o
+Input URL: https://openai.com/blog/gpt-5.2
 
 Fetched HTML: <!DOCTYPE html><html>...(50KB of HTML)...</html>
 
 Extracted Text (trafilatura):
-  "GPT-4o is our newest flagship model that provides GPT-4-level 
+  "gpt-5.2 is our newest flagship model that provides GPT-4-level 
    intelligence but is much faster and improves on its capabilities 
    across text, voice, and vision..."
 
 Evidence Pack Output:
 {
-  "sources": [{"url": "https://openai.com/blog/gpt-4o", "title": "GPT-4o"}],
+  "sources": [{"url": "https://openai.com/blog/gpt-5.2", "title": "gpt-5.2"}],
   "snippets": [
-    {"id": 1, "content": "GPT-4o is our newest flagship model...", "source_url": "..."},
+    {"id": 1, "content": "gpt-5.2 is our newest flagship model...", "source_url": "..."},
     {"id": 2, "content": "The model accepts any combination of text...", "source_url": "..."},
     ...
   ],
@@ -115,7 +115,7 @@ Single LLM call that analyzes evidence and generates structured Slack reply.
 
 **What it does:**
 1. Loads prompt template from `data/prompts/analyze.yaml`
-2. Calls GPT-4o to generate all reply sections in one request
+2. Calls gpt-5.2 to generate all reply sections in one request
 3. Enforces strict Pydantic validation on output structure
 4. Automatically traced by Langfuse via `langfuse.openai` wrapper
 
@@ -132,12 +132,12 @@ class AnalysisResult(BaseModel):
 ```json
 {
   "tldr": [
-    "GPT-4o is OpenAI's multimodal model combining text, audio, and vision capabilities.",
+    "gpt-5.2 is OpenAI's multimodal model combining text, audio, and vision capabilities.",
     "It offers significantly lower latency (232ms) making it suitable for real-time applications.",
     "API pricing at $5/1M tokens makes it cost-effective for production deployments."
   ],
   "summary": [
-    "OpenAI released GPT-4o as their flagship multimodal model.",
+    "OpenAI released gpt-5.2 as their flagship multimodal model.",
     "The model processes text, images, and audio natively without separate pipelines.",
     "Average response latency of 232ms enables conversational voice applications.",
     "..."
@@ -177,10 +177,10 @@ def is_full_sentence(s: str) -> bool:
     return any(char in {".", "!", "?"} for char in s[-3:])
 
 # Fails validation:
-"GPT-4o is a new model"  # Missing punctuation
+"gpt-5.2 is a new model"  # Missing punctuation
 
 # Passes validation:
-"GPT-4o is a new model."  # Ends with period
+"gpt-5.2 is a new model."  # Ends with period
 ```
 
 **On Failure:**
@@ -203,8 +203,8 @@ Converts analysis result to Slack Block Kit and posts as threaded reply.
 
 **Markdown → Slack mrkdwn:**
 ```
-Input:  "**GPT-4o** is OpenAI's newest model"
-Output: "*GPT-4o* is OpenAI's newest model"
+Input:  "**gpt-5.2** is OpenAI's newest model"
+Output: "*gpt-5.2* is OpenAI's newest model"
 ```
 
 **Slack Block Kit Output:**
@@ -219,7 +219,7 @@ Output: "*GPT-4o* is OpenAI's newest model"
     },
     {
       "type": "section", 
-      "text": {"type": "mrkdwn", "text": "• GPT-4o is OpenAI's multimodal model..."}
+      "text": {"type": "mrkdwn", "text": "• gpt-5.2 is OpenAI's multimodal model..."}
     },
     {
       "type": "divider"
@@ -237,12 +237,12 @@ Output: "*GPT-4o* is OpenAI's newest model"
 ```
 ┌────────────────────────────────────────────┐
 │ 🤖 TL;DR                                   │
-│ • GPT-4o is OpenAI's multimodal model...   │
+│ • gpt-5.2 is OpenAI's multimodal model...   │
 │ • It offers significantly lower latency... │
 │ • API pricing at $5/1M tokens...           │
 │ ────────────────────────────────────────── │
 │ 📝 Summary                                 │
-│ OpenAI released GPT-4o as their flagship...│
+│ OpenAI released gpt-5.2 as their flagship...│
 │ ...                                        │
 │ ────────────────────────────────────────── │
 │ 💡 Project Ideas                           │
@@ -438,7 +438,7 @@ LANGFUSE_ENABLED=true
     "projects": [...]
   },
   "metadata": {
-    "model": "gpt-4o",
+    "model": "gpt-5.2",
     "tokens_input": 1523,
     "tokens_output": 892,
     "cost_usd": 0.0119,
