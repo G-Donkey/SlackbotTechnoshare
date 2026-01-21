@@ -36,10 +36,3 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
-
-def load_domain_rules() -> Dict[str, Any]:
-    path = Path("data/domain_rules.yaml")
-    if not path.exists():
-        return {}
-    with open(path, "r") as f:
-        return yaml.safe_load(f)
